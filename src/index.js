@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { Server } from "socket.io";
 import fs from 'fs';
-import { Game } from './game.js'
+import { Game } from './Game.js'
 
 
 const USE_SSL = process.env.USE_SSL === 'true';
