@@ -55,22 +55,10 @@ export default {
     devServer: {
         static: [{
             directory: path.resolve(__dirname, '.'), // serves files not built from webpack
-            // // Can be:
-            // // serveIndex: {} (options for the `serveIndex` option you can find https://github.com/expressjs/serve-index)
-            // serveIndex: true,
-            // // Can be:
-            // // watch: {} (options for the `watch` option you can find https://github.com/paulmillr/chokidar)
-            // watch: true,
         },
         {
-            directory: path.resolve(__dirname, '.'), // serves files not built from webpack
+            directory: path.resolve(__dirname, '.'),
             publicPath: '/client-dist', // webpack builds files into RAM, and serves in this path (overrides actual folders)
-            // // Can be:
-            // // serveIndex: {} (options for the `serveIndex` option you can find https://github.com/expressjs/serve-index)
-            // serveIndex: true,
-            // // Can be:
-            // // watch: {} (options for the `watch` option you can find https://github.com/paulmillr/chokidar)
-            // watch: true,
         },
         ],
         host: '127.0.0.1',

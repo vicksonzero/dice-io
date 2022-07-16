@@ -1,6 +1,6 @@
 // measurements
-export const WORLD_WIDTH = 1366; // px
-export const WORLD_HEIGHT = 768 // px
+export const WORLD_WIDTH = 400; // px
+export const WORLD_HEIGHT = 640; // px
 export const BASE_LINE_WIDTH = 100; // px
 export const METER_TO_PIXEL = 20; // pixel per meter
 export const PIXEL_TO_METER = 1 / METER_TO_PIXEL; // meter per pixel
