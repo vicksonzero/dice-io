@@ -1,0 +1,27 @@
+{
+  "name": "dice-io",
+  "version": "1.0.0",
+  "description": "Roll dice to fight in an IO game",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node ./src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vicksonzero/dice-io.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vicksonzero/dice-io/issues"
+  },
+  "homepage": "https://github.com/vicksonzero/dice-io#readme",
+  "dependencies": {
+    "box2dweb-commonjs": "^2.1.0",
+    "dotenv": "^16.0.1",
+    "socket.io": "^4.5.1",
+    "socket.io-client": "^4.5.1"
+  }
+}
