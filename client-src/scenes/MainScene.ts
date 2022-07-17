@@ -142,12 +142,26 @@ export class MainScene extends Phaser.Scene {
                 netDamageA, netDamageB,
                 transferredIndex,
             } = message;
-            console.log([`fight: `,
-                `${playerAId}(${rollsSuitA.join('')}, ${netDamageA}dmg)`,
-                ` vs ` +
-                `${playerBId}(${rollsSuitB.join('')}, ${netDamageB}dmg)`,
-                `, result=${result})`
-            ].join(''));
+
+            const msg = [`fight: \n`,
+                `${playerAId}(${rollsSuitA.join('')}, ${netDamageA}dmg)\n`,
+                ` vs \n` +
+                `${playerBId}(${rollsSuitB.join('')}, ${netDamageB}dmg)\n`,
+                `result=${result})`
+            ].join('');
+            console.log(msg);
+
+            const playerA = this.entityList[playerAId];
+            const playerB = this.entityList[playerBId];
+
+            const msgLabel = this.add.text(0, 0, msg, { align: 'center', color: '#000' });
+            this.effectsLayer.add(msgLabel);
+            msgLabel.setPosition(
+                (playerA.x + playerB.x) / 2,
+                (playerA.y + playerB.y) / 2,
+            );
+            msgLabel.setName('score-label');
+            msgLabel.setOrigin(0.5);
         });
 
         this.socket.onAny((event, ...args) => {
@@ -234,6 +248,15 @@ export class MainScene extends Phaser.Scene {
         );
         // this.distanceMatrix.init([this.bluePlayer, this.redPlayer, ...this.blueAi, ...this.redAi, ...this.items]);
         this.updatePlayers(fixedTime, frameSize);
+        for (const child of this.effectsLayer.list) {
+            if (child.name == 'score-label') {
+                (child as any).setAlpha((child as any).alpha - 0.001);
+                if((child as any).alpha <=0.02){
+                    child.destroy();
+                }
+            }
+        }
+
 
         this.fixedTime.update(fixedTime, frameSize);
         this.lateUpdate(fixedTime, frameSize);

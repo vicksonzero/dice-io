@@ -256,8 +256,7 @@ export class Player extends Phaser.GameObjects.Container {
                 Math.cos(increment * i) * radius,
                 Math.sin(increment * i) * radius,
             );
-
-        })
+        });
 
         this.debugText.setText(this.isControlling ? `(${x.toFixed(1)}, ${y.toFixed(1)})` : '');
         this.debugRemoteDot.setPosition(x - this.x, y - this.y);
