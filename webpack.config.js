@@ -1,15 +1,17 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const path = require('path');
+
+// // __dirname for es modules
+// const { fileURLToPath } = require('url');
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
 const pathToPhaser = path.join(__dirname, '/node_modules/phaser/');
 const phaser = path.join(pathToPhaser, 'dist/phaser.js');
-import TerserPlugin from 'terser-webpack-plugin';
-import CopyPlugin from 'copy-webpack-plugin';
+const TerserPlugin = require('terser-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
 
-export default {
+module.exports = {
     entry: {
         bundle: './client-src/client.ts',
         // version: './src/version.js',

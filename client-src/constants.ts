@@ -1,6 +1,8 @@
 // measurements
-export const WORLD_WIDTH = 400; // px
-export const WORLD_HEIGHT = 640; // px
+export const WORLD_WIDTH = 2000; // px
+export const WORLD_HEIGHT = 2000; // px
+export const CAMERA_WIDTH = 400; // px
+export const CAMERA_HEIGHT = 640; // px
 export const BASE_LINE_WIDTH = 100; // px
 export const METER_TO_PIXEL = 20; // pixel per meter
 export const PIXEL_TO_METER = 1 / METER_TO_PIXEL; // meter per pixel
@@ -24,4 +26,4 @@ export const AUDIO_START_MUTED = true; // default false
 export const PHYSICS_FRAME_SIZE = 16; // ms
 export const PHYSICS_ALLOW_SLEEPING = false; // default false
 export const PHYSICS_MAX_FRAME_CATCHUP = 10; // times, default 10 times (10*16 = 160ms)
-
+export const WS_URL = "ws://localhost:3000";

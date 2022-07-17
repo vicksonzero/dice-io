@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Roll dice to fight in an IO game",
   "main": "src/index.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
-    "start": "node ./src/index.js",
+    "start": "tsc && node ./server-dist/server-src/index.js",
     "build": "npm run build-client",
     "lint": "eslint client-src --ext .js,.ts,.tsx",
     "webpack": "webpack",

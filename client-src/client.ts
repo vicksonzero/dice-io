@@ -1,21 +1,21 @@
 import * as Debug from 'debug';
 import "phaser";
-import { WORLD_HEIGHT, WORLD_WIDTH } from './constants';
+import { WORLD_HEIGHT, WORLD_WIDTH, CAMERA_WIDTH, CAMERA_HEIGHT } from './constants';
 import { PhysicsSystem } from './PhysicsSystem';
 import { MainScene } from "./scenes/MainScene";
 import './utils/window';
 
 
 window._Debug = Debug;
-const verbose = Debug('dice-io:client:verbose ');
+const verbose = Debug('dice-io:client:verbose');
 // const warn = Debug('dice-io:client:warn');
 // warn.log = console.warn.bind(console);
 
 
 // main game configuration
 const phaserConfig: Phaser.Types.Core.GameConfig = {
-    width: WORLD_WIDTH,
-    height: WORLD_HEIGHT,
+    width: CAMERA_WIDTH,
+    height: CAMERA_HEIGHT,
     disableContextMenu: true,
     type: Phaser.AUTO,
     parent: "game",

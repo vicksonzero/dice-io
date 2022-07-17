@@ -5,11 +5,11 @@ export function preload(this: Phaser.Scene) {
     // this.load.json('sheetMap', url);
 
     this.load.atlasXML('allSprites_default',
-        './assets/sprites/kenney_topdowntanksredux/allSprites_default.png',
-        './assets/sprites/kenney_topdowntanksredux/allSprites_default.xml'
+        './assets/kenney_topdowntanksredux/allSprites_default.png',
+        './assets/kenney_topdowntanksredux/allSprites_default.xml'
     );
 
-    this.load.image('manBlue_hold', './assets/kenney_boardgameicons/arrow_clockwise.png');
+    this.load.image('character', './assets/kenney_boardgameicons/character.png');
 
     // this.load.atlas('items_icon',
     //     './assets/sprites/dicksonmd/spritesheet (1).png',

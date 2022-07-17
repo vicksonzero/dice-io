@@ -5,8 +5,8 @@ import { METER_TO_PIXEL, PHYSICS_ALLOW_SLEEPING, PIXEL_TO_METER } from "./consta
 import { GameObjects } from "phaser";
 
 
-const verbose = Debug('dice-io:PhysicsSystem:verbose ');
-const log = Debug('dice-io:PhysicsSystem:log ');
+const verbose = Debug('dice-io:PhysicsSystem:verbose');
+const log = Debug('dice-io:PhysicsSystem:log');
 // const warn = Debug('dice-io:PhysicsSystem:warn');
 // warn.log = console.warn.bind(console);
 
@@ -53,7 +53,7 @@ export class PhysicsSystem {
             });
             body.SetAngle(gameObject.rotation);
         }
-        // verbose('readStateFromGame\n' + verboseLogs.join('\n'));
+        verbose('readStateFromGame\n' + verboseLogs.join('\n'));
     }
 
     writeStateIntoGame() {
@@ -73,7 +73,7 @@ export class PhysicsSystem {
             gameObject.y = pos.y * METER_TO_PIXEL;
             gameObject.setRotation(rot);
         }
-        // verbose('writeStateIntoGame\n' + verboseLogs.join('\n'));
+        verbose('writeStateIntoGame\n' + verboseLogs.join('\n'));
     }
 
     update(timeStep: number, graphics?: Phaser.GameObjects.Graphics) {

@@ -9,12 +9,50 @@
             padding: 0px;
             margin: 0px;
         }
+
+        #gameContainer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #start {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #start .form {
+            width: 500px;
+            max-width: 100%;
+            height: 200px;
+            max-height: 100%;
+            background-color: #fffffff4;
+            text-align: center;
+        }
     </style>
     <script src="bundle.js"></script>
 </head>
 
 <body>
-    <div id="game"></div>
+    <div id="gameContainer">
+        <div id="game"></div>
+
+    </div>
+    <div id="start">
+        <form class="form">
+            <h1>Dickson's Dice-io</h1>
+            <p><label for="name">Name: </label><input type="text" name="name" id="player-name"></p>
+            <p> <input type="button" value="Start" id="start-game"></p>
+
+        </form>
+    </div>
 </body>
 
 </html>

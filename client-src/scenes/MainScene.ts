@@ -1,16 +1,34 @@
-import { b2Contact, b2ContactImpulse, b2ContactListener, b2Fixture, b2Manifold, b2ParticleBodyContact, b2ParticleContact, b2ParticleSystem, b2Shape } from '@flyover/box2d';
+import {
+    b2Contact, b2ContactImpulse, b2ContactListener,
+    b2Fixture, b2Manifold,
+    b2ParticleBodyContact, b2ParticleContact, b2ParticleSystem,
+    b2Shape
+} from '@flyover/box2d';
 import * as Debug from 'debug';
 import "phaser";
 import { GameObjects } from 'phaser';
 import { preload as _assets_preload, setUpAudio as _assets_setUpAudio } from '../assets';
 import { config, ItemType } from '../config/config';
-import { BASE_LINE_WIDTH, BULLET_SPEED, DEBUG_DISABLE_SPAWNING, DEBUG_PHYSICS, PHYSICS_FRAME_SIZE, PHYSICS_MAX_FRAME_CATCHUP, PIXEL_TO_METER, PLAYER_MOVE_SPEED, SPAWN_DELAY, SPAWN_INTERVAL, TANK_CHASE_ITEM_RANGE, TANK_SPEED, WORLD_HEIGHT, WORLD_WIDTH } from '../constants';
+import {
+    BASE_LINE_WIDTH, BULLET_SPEED,
+    DEBUG_DISABLE_SPAWNING, DEBUG_PHYSICS,
+    PHYSICS_FRAME_SIZE, PHYSICS_MAX_FRAME_CATCHUP, PIXEL_TO_METER,
+    PLAYER_MOVE_SPEED,
+    SPAWN_DELAY, SPAWN_INTERVAL,
+    WORLD_WIDTH, WORLD_HEIGHT,
+    CAMERA_WIDTH, CAMERA_HEIGHT,
+    WS_URL,
+} from '../constants';
 // import { Immutable } from '../utils/ImmutableType';
 import { Player } from '../gameObjects/Player';
 import { IBodyUserData, IFixtureUserData, PhysicsSystem } from '../PhysicsSystem';
 import { DistanceMatrix } from '../utils/DistanceMatrix';
 // import { GameObjects } from 'phaser';
 import { capitalize, lerpRadians } from '../utils/utils';
+import { io } from "socket.io-client";
+import type { Socket } from "socket.io-client";
+import { PlayerState, StateMessage } from '../../model/EventsFromServer';
+import { StartMessage } from '../../model/EventsFromClient';
 
 
 type BaseSound = Phaser.Sound.BaseSound;
@@ -30,7 +48,7 @@ const log = Debug('dice-io:MainScene:log');
 export type Controls = { up: Key, down: Key, left: Key, right: Key, action: Key };
 
 export class MainScene extends Phaser.Scene {
-
+    socket: Socket;
     controlsList: Controls[];
 
     isGameOver: boolean;
@@ -38,6 +56,8 @@ export class MainScene extends Phaser.Scene {
 
     fixedTime: Phaser.Time.Clock;
     fixedElapsedTime: number;
+
+    entityList: { [x: number]: Player } = {};
 
     backgroundUILayer: Container;
     factoryLayer: Container;
@@ -62,6 +82,8 @@ export class MainScene extends Phaser.Scene {
     frameSize = PHYSICS_FRAME_SIZE; // ms
     lastUpdate = -1;
     distanceMatrix: DistanceMatrix;
+    startButton: HTMLDivElement;
+    startForm: HTMLFormElement;
 
     get mainCamera() { return this.sys.cameras.main; }
 
@@ -76,9 +98,50 @@ export class MainScene extends Phaser.Scene {
         _assets_preload.call(this);
     }
 
+    initSocket() {
+        this.socket = io(WS_URL, {
+            reconnectionDelayMax: 10000,
+            // auth: {
+            //     token: "123"
+            // },
+            // query: {
+            //     "my-key": "my-value"
+            // }
+        });
+
+        this.socket.on("connect", () => {
+            console.log(`Socket connected. id is ${this.socket.id}`);
+        });
+        this.socket.on("disconnect", () => {
+            console.log(`Socket disconnected`);
+        });
+        this.socket.on('welcome', (playerStateList?: StateMessage) => {
+            console.log(`Socket welcome`);
+            this.input.keyboard.enabled = true;
+            this.input.keyboard.enableGlobalCapture();
+
+            this.startForm.style.display = 'none';
+
+            if (playerStateList) this.handlePlayerStateList(playerStateList);
+
+            this.socket.emit('dash', { dashVector: { x: 10, y: 1 } });
+            (window as any).socketT = this.socket;
+        })
+        this.socket.on("state", (playerStateList: StateMessage) => {
+            console.log(`Socket state (${playerStateList.length})`);
+            this.handlePlayerStateList(playerStateList);
+        });
+
+        this.socket.onAny((event, ...args) => {
+            console.log(`event ${event}`, ...args);
+        });
+    }
+
     create(): void {
+        this.initSocket();
         _assets_setUpAudio.call(this);
         log('create');
+        this.mainCamera.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.fixedTime = new Phaser.Time.Clock(this);
         this.fixedElapsedTime = 0;
         // this.getPhysicsSystem().init(this as b2ContactListener);
@@ -110,6 +173,8 @@ export class MainScene extends Phaser.Scene {
 
         this.setUpGUI();
         this.setUpKeyboard();
+        this.input.keyboard.enabled = false;
+        this.input.keyboard.disableGlobalCapture();
         log('create complete');
     }
 
@@ -184,14 +249,57 @@ export class MainScene extends Phaser.Scene {
     }
 
     setUpGUI() {
+        this.startForm = document.querySelector('#start .form')!;
+        this.startButton = document.querySelector('#start-game')!;
+        const submitNameToServer = () => {
+            const name = (document.querySelector('input#player-name')! as HTMLInputElement).value;
+            this.socket.emit('start', { name } as StartMessage);
+        };
+
+        this.startButton.onclick = submitNameToServer;
+        this.startForm.onsubmit = () => {
+            event?.preventDefault();
+            submitNameToServer();
+        };
+
+
+        const clickRect = this.add.graphics();
+        clickRect.fillStyle(0xFFFFFF, 0.01);
+        clickRect.fillRect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
+        this.uiLayer.setScrollFactor(0);
+        this.uiLayer.add([
+            clickRect,
+        ]);
 
     }
 
     updatePlayers() {
 
-
     }
 
+    spawnPlayer(playerState: PlayerState) {
+        const player = new Player(this);
+
+        this.playerLayer.add(player);
+        player.init(playerState).initPhysics();
+
+        return player;
+    }
+
+    handlePlayerStateList(playerStateList: StateMessage) {
+        for (const playerState of playerStateList) {
+            const { entityId } = playerState;
+            if (!this.entityList[entityId]) {
+                const player = this.entityList[entityId] = this.spawnPlayer(playerState);
+                if (player.isControlling) {
+                    console.log(`Me: ${playerState.entityId}`);
+                    this.mainCamera.startFollow(player, true, 0.2, 0.2);
+                }
+            } else {
+                this.entityList[entityId].applyState(playerState);
+            }
+        }
+    }
 
 
     addToList(gameObject: (GameObjects.Container & { uniqueID: number }), list: (GameObjects.Container & { uniqueID: number })[]) {
