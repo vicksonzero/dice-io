@@ -42,4 +42,11 @@ npm start
 
 pm2
 ```bash
+pm2 
+```
+
+Restart server:
+```bash
+# git reset --hard # if needed
+git pull && tsc && pm2 restart dice-io
 ```

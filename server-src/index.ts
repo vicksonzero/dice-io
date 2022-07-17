@@ -83,7 +83,7 @@ io.on("connection", (socket: Socket) => {
 
     socket.on("dash", (data: DashMessage) => {
         const { dashVector } = data;
-        console.log(`Socket dash. (${dashVector.x}, ${dashVector.y})`);
+        // console.log(`Socket dash. (${dashVector.x}, ${dashVector.y})`);
         game.onPlayerDash(socket.id, dashVector);
         sendState();
     });

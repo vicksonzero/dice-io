@@ -36,9 +36,9 @@ export class Dice {
     }
     static diceDefinitions: { [x: string]: DiceDefinition } = {
         /* cSpell:disable */
-        WHITE: { sides: 'SSSHHM', color: 0xc1e7e8, desc: 'Balanced basic dice' },
+        WHITE: { sides: 'SSSHHM', color: 0xb1c6c7, desc: 'Balanced basic dice' },
         BLUE: { sides: 'SSHHHM', color: 0x4257f5, desc: 'Defense dice' },
-        RED: { sides: 'SSSSHH', color: 0xf55442, desc: 'Offense dice' },
+        RED: { sides: 'SSSSHH', color: 0xd11f19, desc: 'Offense dice' },
         GREEN: { sides: 'VBSMM ', color: 0x68d647, desc: 'Poison dice' },
         AQUA: { sides: 'FFSSMM', color: 0x5fe8ed, desc: 'Speed dice' },
         YELLOW: { sides: 'MMSHH ', color: 0xf5dd53, desc: 'Morale dice' },
