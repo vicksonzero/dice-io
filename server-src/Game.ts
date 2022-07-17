@@ -10,12 +10,12 @@ import { IFixtureUserData, IBodyUserData } from '../client-src/PhysicsSystem';
 import { Player } from './Player';
 import type { Socket } from 'socket.io';
 import { PHYSICS_FRAME_SIZE, PHYSICS_MAX_FRAME_CATCHUP, SPAWN_PADDING, WORLD_HEIGHT, WORLD_WIDTH } from './constants';
-import { StateMessage } from '../model/EventsFromServer';
+import { AttackHappenedMessage, StateMessage } from '../model/EventsFromServer';
 import { PhysicsSystem } from './PhysicsSystem';
 import { Clock } from '../model/PhaserClock';
 import { DistanceMatrix } from '../utils/DistanceMatrix'
 import { names } from '../model/Names'
-import { Dice } from './Dice';
+import { Dice, RollsStats } from './Dice';
 
 
 const verbose = Debug('dice-io:Game:verbose');
@@ -31,6 +31,9 @@ export class Game implements b2ContactListener {
 
     physicsSystem: PhysicsSystem = new PhysicsSystem();
     distanceMatrix: DistanceMatrix = new DistanceMatrix();
+
+    emitSocketEvent = (socketId: string, event: string, data: any) => { };
+    emitToAll = (event: string, data: any) => { };
 
 
     constructor() {
@@ -75,8 +78,8 @@ export class Game implements b2ContactListener {
             Dice.getRandomDice(tier)!,
         ];
 
-        console.log('getRandomDice', npc.diceList.map(d=>d.symbol).join(''));
-        
+        console.log('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
+
 
         return npc;
     }
@@ -107,7 +110,7 @@ export class Game implements b2ContactListener {
         this.distanceMatrix.insertTransform(player);
 
         console.log(`Created player ${player.entityId}`);
-        console.log('getRandomDice', player.diceList.map(d=>d.symbol).join(''));
+        console.log('getRandomDice', player.diceList.map(d => d.symbol).join(''));
         return player;
     }
     onPlayerDisconnected(playerId: string) {
@@ -266,68 +269,51 @@ export class Game implements b2ContactListener {
             const fixtureA = contact.GetFixtureA();
             const fixtureB = contact.GetFixtureB();
 
-            const fixtureDataA: IFixtureUserData = contact.GetFixtureA()?.GetUserData();
-            const fixtureDataB: IFixtureUserData = contact.GetFixtureB()?.GetUserData();
+            const bodyA = fixtureA.GetBody();
+            const bodyB = fixtureB.GetBody();
 
-            const bodyDataA: IBodyUserData = fixtureA.GetBody()?.GetUserData();
-            const bodyDataB: IBodyUserData = fixtureB.GetBody()?.GetUserData();
+            const fixtureDataA: IFixtureUserData = fixtureA?.GetUserData();
+            const fixtureDataB: IFixtureUserData = fixtureB?.GetUserData();
 
-            const gameObjectA = fixtureA.GetBody()?.GetUserData()?.gameObject;
-            const gameObjectB = fixtureB.GetBody()?.GetUserData()?.gameObject;
-            // log(`BeginContact ` +
-            //     `${bodyDataA?.label}(${gameObjectA?.uniqueID})'s ${fixtureDataA?.fixtureLabel}` +
-            //     ` vs ` +
-            //     `${bodyDataB?.label}(${gameObjectB?.uniqueID})'s ${fixtureDataB?.fixtureLabel}`
-            // );
+            const bodyDataA: IBodyUserData = bodyA?.GetUserData();
+            const bodyDataB: IBodyUserData = bodyB?.GetUserData();
 
-            const checkPairGameObjectName = this.checkPairGameObjectName_(fixtureA, fixtureB);
-            const checkPairFixtureLabels = this.checkPairFixtureLabels_(fixtureA, fixtureB);
+            const gameObjectA = bodyA?.GetUserData()?.gameObject;
+            const gameObjectB = bodyB?.GetUserData()?.gameObject;
 
-            // checkPairFixtureLabels('player-hand', 'tank-body', (a: b2Fixture, b: b2Fixture) => {
-            //     log('do contact 1');
-            //     (<Player>a.GetBody()?.GetUserData()?.gameObject).onTouchingTankStart(a, b, contact!);
-            // });
-            // if (fixtureA.GetBody()?.GetUserData()?.gameObject == null || fixtureB.GetBody()?.GetUserData()?.gameObject == null) {
-            //     log('gone 1');
-            //     continue;
-            // }
 
-            // checkPairFixtureLabels('player-hand', 'item-body', (a: b2Fixture, b: b2Fixture) => {
-            //     log('do contact 2');
-            //     (<Player>a.GetBody()?.GetUserData()?.gameObject).onTouchingItemStart(a, b, contact!);
-            // });
-            // if (fixtureA.GetBody()?.GetUserData()?.gameObject == null || fixtureB.GetBody()?.GetUserData()?.gameObject == null) {
-            //     log('gone 2');
-            //     continue;
-            // }
+            console.log(`BeginContact ` +
+                `${bodyDataA?.label}(${gameObjectA?.uniqueID})'s ${fixtureDataA?.fixtureLabel}` +
+                ` vs ` +
+                `${bodyDataB?.label}(${gameObjectB?.uniqueID})'s ${fixtureDataB?.fixtureLabel}`
+            );
 
-            checkPairGameObjectName('tank', 'item', (tankFixture: b2Fixture, itemFixture: b2Fixture) => {
-                // log('do contact 3');
+            const checkPairGameObjectName = this.checkPairWithMapper_(fixtureA, fixtureB,
+                (fixture) => (fixture?.GetBody()?.GetUserData()?.gameObject.name)
+            );
+            const checkPairFixtureLabels = this.checkPairWithMapper_(fixtureA, fixtureB,
+                (fixture) => (fixture?.GetUserData()?.fixtureLabel)
+            );
+
+
+            checkPairFixtureLabels('player', 'player', (playerFixtureA: b2Fixture, playerFixtureB: b2Fixture) => {
+                console.log('do contact');
+                const playerA: Player = playerFixtureA.GetBody()?.GetUserData()?.gameObject as Player;
+                const playerB: Player = playerFixtureB.GetBody()?.GetUserData()?.gameObject as Player;
+
+                this.fight(playerA, playerB);
             });
-            if (fixtureA.GetBody()?.GetUserData()?.gameObject == null || fixtureB.GetBody()?.GetUserData()?.gameObject == null) {
-                // log('gone 3');
-                continue;
-            }
+            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
 
-            checkPairGameObjectName('tank', 'bullet', (tankFixture: b2Fixture, bulletFixture: b2Fixture) => {
-                // log('do contact 3');
-            });
-            if (fixtureA.GetBody()?.GetUserData()?.gameObject == null || fixtureB.GetBody()?.GetUserData()?.gameObject == null) {
-                // log('gone 3');
-                continue;
-            }
-
-            checkPairFixtureLabels('player-body', 'bullet-body', (playerFixture: b2Fixture, bulletFixture: b2Fixture) => {
-                // log('do contact 4');
-            });
-            if (fixtureA.GetBody()?.GetUserData()?.gameObject == null || fixtureB.GetBody()?.GetUserData()?.gameObject == null) {
-                // log('gone 4');
-                continue;
-            }
-
-            // checkPairGameObjectName('player_bullet', 'enemy', (a: b2Fixture, b: b2Fixture) => {
-            //     // (<PlayerBullet>a.gameObject).onHitEnemy(b.gameObject, activeContacts as IMatterContactPoints);
+            // checkPairGameObjectName('tank', 'bullet', (tankFixture: b2Fixture, bulletFixture: b2Fixture) => {
+            //     // log('do contact 3');
             // });
+            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
+
+            // checkPairFixtureLabels('player-body', 'bullet-body', (playerFixture: b2Fixture, bulletFixture: b2Fixture) => {
+            //     // log('do contact 4');
+            // });
+
         }
     }
     public EndContact(pContact: b2Contact<b2Shape, b2Shape>): void {
@@ -336,36 +322,28 @@ export class Game implements b2ContactListener {
             const fixtureA = contact.GetFixtureA();
             const fixtureB = contact.GetFixtureB();
 
-            const fixtureDataA: IFixtureUserData = contact.GetFixtureA()?.GetUserData();
-            const fixtureDataB: IFixtureUserData = contact.GetFixtureB()?.GetUserData();
-
-            const bodyDataA: IBodyUserData = fixtureA.GetBody()?.GetUserData();
-            const bodyDataB: IBodyUserData = fixtureB.GetBody()?.GetUserData();
-
-            const gameObjectA = fixtureA.GetBody()?.GetUserData()?.gameObject;
-            const gameObjectB = fixtureB.GetBody()?.GetUserData()?.gameObject;
-            // log(`EndContact ` +
-            //     `${bodyDataA?.label}(${gameObjectA?.uniqueID})'s ${fixtureDataA?.fixtureLabel}` +
-            //     ` vs ` +
-            //     `${bodyDataB?.label}(${gameObjectB?.uniqueID})'s ${fixtureDataB?.fixtureLabel}`
-            // );
-
-
-            const checkPairGameObjectName = this.checkPairGameObjectName_(fixtureA, fixtureB);
-            const checkPairFixtureLabels = this.checkPairFixtureLabels_(fixtureA, fixtureB);
+            const checkPairGameObjectName = this.checkPairWithMapper_(fixtureA, fixtureB,
+                (fixture) => (fixture?.GetBody()?.GetUserData()?.gameObject.name)
+            );
+            const checkPairFixtureLabels = this.checkPairWithMapper_(fixtureA, fixtureB,
+                (fixture) => (fixture?.GetUserData()?.fixtureLabel)
+            );
 
             // checkPairFixtureLabels('player-hand', 'tank-body', (a: b2Fixture, b: b2Fixture) => {
             //     (<Player>a.GetBody()?.GetUserData()?.gameObject).onTouchingTankEnd(a, b, contact!);
             // });
+            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
 
             // checkPairFixtureLabels('player-hand', 'item-body', (a: b2Fixture, b: b2Fixture) => {
             //     (<Player>a.GetBody()?.GetUserData()?.gameObject).onTouchingItemEnd(a, b, contact!);
             // });
+            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
 
 
             // checkPairGameObjectName('player_bullet', 'enemy', (a: b2Fixture, b: b2Fixture) => {
             //     // (<PlayerBullet>a.gameObject).onHitEnemy(b.gameObject, activeContacts as IMatterContactPoints);
             // });
+            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
         }
     }
 
@@ -388,36 +366,84 @@ export class Game implements b2ContactListener {
         // do nothing
     }
 
-    private checkPairGameObjectName_(fixtureA: b2Fixture, fixtureB: b2Fixture) {
-        const gameObjectA = fixtureA?.GetBody()?.GetUserData()?.gameObject;
-        const gameObjectB = fixtureB?.GetBody()?.GetUserData()?.gameObject;
+    private checkPairWithMapper_(fixtureA: b2Fixture, fixtureB: b2Fixture, mappingFunction: (fixture: b2Fixture) => string) {
+        const _nameA = mappingFunction(fixtureA);
+        const _nameB = mappingFunction(fixtureA);
 
         return (
             nameA: string, nameB: string,
             matchFoundCallback: (a: b2Fixture, b: b2Fixture) => void
         ) => {
-            if (gameObjectA?.name === nameA && gameObjectB?.name === nameB) {
+            if (_nameA === nameA && _nameB === nameB) {
                 matchFoundCallback(fixtureA, fixtureB);
-            } else if (gameObjectB?.name === nameA && gameObjectA?.name === nameB) {
+            } else if (_nameB === nameA && _nameA === nameB) {
                 matchFoundCallback(fixtureB, fixtureA);
             }
         }
     }
+    private someFixturesDied(fixtureA: b2Fixture, fixtureB: b2Fixture) {
+        return fixtureA.GetBody()?.GetUserData()?.gameObject == null ||
+            fixtureB.GetBody()?.GetUserData()?.gameObject == null;
+    }
 
-    private checkPairFixtureLabels_(fixtureA: b2Fixture, fixtureB: b2Fixture) {
-        const fixtureDataA: IFixtureUserData = fixtureA.GetUserData();
-        const fixtureDataB: IFixtureUserData = fixtureB.GetUserData();
+    fight(playerA: Player, playerB: Player) {
+        const rollsA = playerA.diceList.map(dice => dice.roll());
+        const rollsB = playerB.diceList.map(dice => dice.roll());
 
-        return (
-            nameA: string, nameB: string,
-            matchFoundCallback: (a: b2Fixture, b: b2Fixture) => void
-        ) => {
-            if (fixtureDataA?.fixtureLabel === nameA && fixtureDataB?.fixtureLabel === nameB) {
-                matchFoundCallback(fixtureA, fixtureB);
-            } else if (fixtureDataB?.fixtureLabel === nameA && fixtureDataA?.fixtureLabel === nameB) {
-                matchFoundCallback(fixtureB, fixtureA);
+        const buffsA = playerA.buffs;
+        const buffsB = playerB.buffs;
+
+        const suitCountA = RollsStats.create(rollsA).suitCount;
+        const suitCountB = RollsStats.create(rollsB).suitCount;
+
+        const netDamageA = suitCountA.S + buffsA.B + buffsB.V - suitCountB.B;
+        const netDamageB = suitCountB.S + buffsB.B + buffsA.V - suitCountA.B;
+
+        let result: 'A' | 'B' | 'DRAW' = 'DRAW';
+
+        if (netDamageA > netDamageB) result = 'A';
+        else if (netDamageB > netDamageA) result = 'B';
+        else if (suitCountA.M > suitCountB.M) result = 'A';
+        else if (suitCountB.M > suitCountA.M) result = 'B';
+
+        const message: AttackHappenedMessage = {
+            untilTick: Date.now() + 3000,
+            result,
+            playerAId: playerA.entityId,
+            playerBId: playerB.entityId,
+            rollsSuitA: rollsA.map(roll => roll.suit),
+            rollsSuitB: rollsB.map(roll => roll.suit),
+            netDamageA,
+            netDamageB,
+            transferredIndex: -1,
+        };
+
+        if (result != 'DRAW') {
+            const winningPlayer = result == 'A' ? playerA : playerB;
+            const losingPlayer = result == 'A' ? playerB : playerA;
+
+            if (losingPlayer.diceList.length > 0) {
+                message.transferredIndex = this.transferRandomDice(losingPlayer, winningPlayer);
+            } else {
+                // kill fromPlayer
             }
         }
+        console.log([`fight: `,
+            `${playerA.entityId}(${message.rollsSuitA.join('')}, ${netDamageA}dmg)`,
+            ` vs ` +
+            `${playerB.entityId}(${message.rollsSuitB.join('')}, ${netDamageB}dmg)`,
+            `, result=${result})`
+        ].join(''));
+
+        this.emitToAll('fight', message);
+    }
+
+    transferRandomDice(fromPlayer: Player, toPlayer: Player) {
+        if (fromPlayer.diceList.length <= 0) return -1;
+        const transferredDiceIndex = ~~(Math.random() * fromPlayer.diceList.length)
+        const dice = fromPlayer.diceList.splice(transferredDiceIndex, 1)[0];
+        toPlayer.diceList.push(dice);
+        return transferredDiceIndex;
     }
 }
 

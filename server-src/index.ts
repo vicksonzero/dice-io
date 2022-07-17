@@ -47,11 +47,17 @@ let game = new Game();
 
 game.init();
 setInterval(() => game.update(), PHYSICS_FRAME_SIZE);
+game.emitSocketEvent = (socketId: string, event: string, data: any) => {
+    io.to(socketId).emit(event, data);
+};
+game.emitToAll = (event: string, data: any) => {
+    io.emit(event, data);
+};
 
 
 io.on("connection", (socket: Socket) => {
     const count = io.engine.clientsCount;
-    console.log(`Socket (${count}) connected. id=${socket.id}`);
+    console.log(`Socket (${count}) connected. id=${socket.id}, ip=${socket.handshake.address}, ua=${socket.handshake.headers['user-agent']}`);
 
     const sendState = (isFullState = false) => {
         const playerStateList = game.getViewForPlayer(socket.id, isFullState);

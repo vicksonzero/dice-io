@@ -51,7 +51,7 @@ export class PhysicsSystem {
                 x: gameObject.x * PIXEL_TO_METER,
                 y: gameObject.y * PIXEL_TO_METER,
             });
-            body.SetAngle(gameObject.rotation);
+            (body as any).bodySprite?.SetAngle(gameObject.rotation);
         }
         verbose('readStateFromGame\n' + verboseLogs.join('\n'));
     }
@@ -71,7 +71,7 @@ export class PhysicsSystem {
             const rot = body.GetAngle(); // radians
             gameObject.x = pos.x * METER_TO_PIXEL;
             gameObject.y = pos.y * METER_TO_PIXEL;
-            gameObject.setRotation(rot);
+            // gameObject.setRotation(rot);
         }
         verbose('writeStateIntoGame\n' + verboseLogs.join('\n'));
     }

@@ -27,7 +27,7 @@ import { DistanceMatrix } from '../../utils/DistanceMatrix';
 import { capitalize, lerpRadians } from '../../utils/utils';
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
-import { PlayerState, StateMessage } from '../../model/EventsFromServer';
+import { AttackHappenedMessage, PlayerState, StateMessage } from '../../model/EventsFromServer';
 import { StartMessage } from '../../model/EventsFromClient';
 
 
@@ -127,11 +127,27 @@ export class MainScene extends Phaser.Scene {
 
             this.socket.emit('dash', { dashVector: { x: 10, y: 1 } });
             (window as any).socketT = this.socket;
-        })
+        });
         this.socket.on("state", (playerStateList: StateMessage) => {
             const entityIdList = playerStateList.state.map(p => p.entityId).join(', ');
             console.log(`Socket state (${playerStateList.state.length}) [${entityIdList}]`);
             this.handlePlayerStateList(playerStateList);
+        });
+        this.socket.on("fight", (message: AttackHappenedMessage) => {
+            const {
+                untilTick,
+                result,
+                playerAId, playerBId,
+                rollsSuitA, rollsSuitB,
+                netDamageA, netDamageB,
+                transferredIndex,
+            } = message;
+            console.log([`fight: `,
+                `${playerAId}(${rollsSuitA.join('')}, ${netDamageA}dmg)`,
+                ` vs ` +
+                `${playerBId}(${rollsSuitB.join('')}, ${netDamageB}dmg)`,
+                `, result=${result})`
+            ].join(''));
         });
 
         this.socket.onAny((event, ...args) => {
@@ -286,21 +302,21 @@ export class MainScene extends Phaser.Scene {
         })
             .on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: TouchEvent | MouseEvent) => {
                 // ...
-                console.log('pointerdown');
+                // console.log('pointerdown');
 
             })
             .on('pointerup', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: TouchEvent | MouseEvent) => {
                 // ...
-                console.log('pointerup', pointer.x, pointer.y);
+                // console.log('pointerup', pointer.x, pointer.y);
                 if (this.mainPlayer == null) return;
 
                 const touchWorldPos = this.mainCamera.getWorldPoint(pointer.x, pointer.y);
-                console.log('pointerup', touchWorldPos.x, touchWorldPos.y);
+                // console.log('pointerup', touchWorldPos.x, touchWorldPos.y);
                 const dashVector = {
                     x: (touchWorldPos.x - this.mainPlayer.x) * 0.7,
                     y: (touchWorldPos.y - this.mainPlayer.y) * 0.7
                 }
-                console.log('pointerup', dashVector);
+                // console.log('pointerup', dashVector);
 
                 this.socket.emit('dash', { dashVector });
             });

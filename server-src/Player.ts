@@ -3,7 +3,7 @@ import { getUniqueID } from '../model/UniqueID';
 import { b2Body, b2BodyDef, b2BodyType, b2CircleShape, b2FixtureDef, b2Vec2, b2World, XY } from "@flyover/box2d";
 import { PIXEL_TO_METER } from "./constants.js";
 import { Dice } from "./Dice.js";
-import { PhysicsSystem } from "./PhysicsSystem.js";
+import { IFixtureUserData, PhysicsSystem } from "./PhysicsSystem.js";
 
 export class Player {
     public entityId: number;
@@ -12,6 +12,11 @@ export class Player {
     public sync = {
         lastReceived: 0,
         lastUpdated: 0,
+    };
+
+    public buffs = {
+        B: 0, // in next fight, deal x more damage
+        V: 0, // in next fight, take x more damage
     };
 
     public name = 'Player';
@@ -23,7 +28,7 @@ export class Player {
     public x = 0;
     public y = 0;
     public angle = 0;
-    public r = 0;
+    public r = 20;
     public friction = 0;
     public vx = 0;
     public vy = 0;
@@ -58,9 +63,13 @@ export class Player {
 
 
     createPhysics(physicsSystem: PhysicsSystem, physicsFinishedCallback?: () => void) {
-        const { fixtureDef, bodyDef } = getPhysicsDefinitions(this.r);
+        const { fixtureDef, bodyDef } = getPhysicsDefinitions(this.r * PIXEL_TO_METER);
 
         this.fixtureDef = fixtureDef;
+
+        fixtureDef.userData = {
+            fixtureLabel: 'player',
+        } as IFixtureUserData;
 
         this.bodyDef = bodyDef;
         bodyDef.userData = {
@@ -88,7 +97,16 @@ export class Player {
         const pos = this.b2Body.GetPosition();
         const v = new b2Vec2(dashVector.x, dashVector.y);
         v.SelfMul(PIXEL_TO_METER);
-        this.b2Body.ApplyLinearImpulse(v, { x: pos.x, y: pos.y }, true);
-        this.b2Body.ApplyAngularImpulse(dashVector.x * 100, true);
+
+        const angularFlick = 0.8;
+        this.b2Body.ApplyLinearImpulse(
+            v,
+            {
+                x: pos.x + (Math.random() * this.r * PIXEL_TO_METER * 2 - this.r * PIXEL_TO_METER) * angularFlick,
+                y: pos.y + (Math.random() * this.r * PIXEL_TO_METER * 2 - this.r * PIXEL_TO_METER) * angularFlick,
+            },
+            true
+        );
+        // this.b2Body.ApplyAngularImpulse(dashVector.x * 1, true);
     }
 }

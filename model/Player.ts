@@ -1,4 +1,7 @@
 import { b2FixtureDef, b2CircleShape, b2BodyDef, b2BodyType } from "@flyover/box2d";
+import { collisionCategory } from "../model/collisionCategory";
+
+
 
 export const getPhysicsDefinitions = (radius: number) => {
 
@@ -6,7 +9,7 @@ export const getPhysicsDefinitions = (radius: number) => {
     const fixtureDef = new b2FixtureDef();
 
     // doesn't participate in collisions? need to check
-    fixtureDef.isSensor = true;
+    fixtureDef.isSensor = false;
 
     // mass per volume
     fixtureDef.density = 1;
@@ -15,12 +18,19 @@ export const getPhysicsDefinitions = (radius: number) => {
     fixtureDef.friction = 1.1;
 
     // bounciness
-    fixtureDef.restitution = 0;
+    fixtureDef.restitution = 0.2;
 
     fixtureDef.shape = new b2CircleShape();
 
     // fixture shape
     fixtureDef.shape.m_radius = radius;
+    
+    // I am a...
+    fixtureDef.filter.categoryBits = collisionCategory.PLAYER;
+    
+    // I can collide with...
+    fixtureDef.filter.maskBits = collisionCategory.WORLD | collisionCategory.PLAYER;
+
 
     // body def defines the body (well...)
     const bodyDef = new b2BodyDef();
@@ -30,7 +40,7 @@ export const getPhysicsDefinitions = (radius: number) => {
 
 
     bodyDef.linearDamping = 0.005;
-    bodyDef.angularDamping = 0.0005;
+    bodyDef.angularDamping = 1;
 
     // sleeping disables physics when not moving.
     // troublesome to wake it back though

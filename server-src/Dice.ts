@@ -24,7 +24,28 @@ export class Dice {
         this.sides[sideIndex].weight += 1;
     }
 
-    static create(symbol:string, sides: string, color: number, desc: string = '') {
+    roll() {
+
+        const weights = Object.entries({ 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1 });
+
+        const totalWeight = 6;
+
+        const roll = Math.random() * totalWeight;
+        let acc = 0;
+        let index = -1;
+        do {
+            ++index;
+            const [name, weight] = weights[index];
+            acc += weight;
+        } while (!(roll < acc) && index + 1 < weights.length);
+
+        // console.log(diceThrow.toFixed(1), totalWeight, index);
+
+        const [name, weight] = weights[index];
+        return this.sides[Number(name)];
+    }
+
+    static create(symbol: string, sides: string, color: number, desc: string = '') {
         const result = new Dice();
 
         result.symbol = symbol;
@@ -37,7 +58,7 @@ export class Dice {
     static diceDefinitions: { [x: string]: DiceDefinition } = {
         /* cSpell:disable */
         WHITE: { sides: 'SSSHHM', color: 0xb1c6c7, desc: 'Balanced basic dice' },
-        BLUE: { sides: 'SSHHHM', color: 0x4257f5, desc: 'Defense dice' },
+        BLUE: { sides: 'HHHSSM', color: 0x4257f5, desc: 'Defense dice' },
         RED: { sides: 'SSSSHH', color: 0xd11f19, desc: 'Offense dice' },
         GREEN: { sides: 'VBSMM ', color: 0x68d647, desc: 'Poison dice' },
         AQUA: { sides: 'FFSSMM', color: 0x5fe8ed, desc: 'Speed dice' },
@@ -66,14 +87,14 @@ export class Dice {
 
         const totalWeight = Object.values(dist).reduce((a, b) => a + b, 0);
 
-        const diceThrow = Math.random() * totalWeight;
+        const roll = Math.random() * totalWeight;
         let acc = 0;
         let index = -1;
         do {
             ++index;
             const [name, weight] = weights[index];
             acc += weight;
-        } while (!(diceThrow < acc) && index + 1 < weights.length);
+        } while (!(roll < acc) && index + 1 < weights.length);
 
         // console.log(diceThrow.toFixed(1), totalWeight, index);
 
@@ -83,7 +104,7 @@ export class Dice {
 }
 
 export class DiceSide {
-    public suit: string = '';
+    public suit: Suit = ' ';
     public weight: number = 1;
 
     constructor() {
@@ -93,6 +114,31 @@ export class DiceSide {
         const result = new DiceSide();
 
         result.suit = suit;
+        return result;
+    }
+}
+
+export class RollsStats {
+    public suitCount: { [x in Suit]: number };
+
+    constructor() {
+        this.suitCount = {
+            " ": 0, //  =Blank
+            "S": 0, // S=Sword
+            "H": 0, // H=Shield
+            "M": 0, // M=Morale
+            "B": 0, // B=Book
+            "V": 0, // V=Venom
+            "F": 0, // F=Fast
+        };
+    }
+    static create(rolls: DiceSide[]) {
+        const result = new RollsStats();
+
+        for (const side of rolls) {
+            result.suitCount[side.suit]++;
+        }
+
         return result;
     }
 }

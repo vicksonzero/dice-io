@@ -113,12 +113,12 @@ export class Player extends Phaser.GameObjects.Container {
         this.isControlling = (isControlling == null ? this.isControlling : isControlling);
         this.setName(`Player ${name} ${this.isControlling ? '(Me)' : ''}`);
 
-        this.setAngle(angle);
+        this.bodySprite.setAngle(angle);
         return this;
     }
 
     initPhysics(physicsFinishedCallback?: () => void): this {
-        const { fixtureDef, bodyDef } = getPhysicsDefinitions(this.r);
+        const { fixtureDef, bodyDef } = getPhysicsDefinitions(this.r * PIXEL_TO_METER);
 
         this.fixtureDef = fixtureDef;
 
@@ -160,13 +160,13 @@ export class Player extends Phaser.GameObjects.Container {
             this.x + Math.max(-smoothCap, Math.min(smoothX - this.x, smoothCap)),
             this.y + Math.max(-smoothCap, Math.min(smoothY - this.y, smoothCap)),
         ); // TODO: lerp instead of set
-        this.setAngle(
-            (this.angle * (1 - SMOOTH_FACTOR)) + ((angle + vAngle * dt) * SMOOTH_FACTOR)
+        this.bodySprite.setAngle(
+            (this.bodySprite.angle * (1 - SMOOTH_FACTOR)) + ((angle + vAngle * dt) * SMOOTH_FACTOR)
         ); // TODO: lerp instead of set
 
         this.b2Body?.SetLinearVelocity({ x: vx, y: vy });
 
-        
+
         this.diceContainer.setAngle(this.diceContainer.angle + 1);
 
         for (const diceSprite of this.diceContainer.list) {
@@ -212,8 +212,8 @@ export class Player extends Phaser.GameObjects.Container {
             this.x + Math.max(-SMOOTH_CAP, Math.min(smoothX - this.x, SMOOTH_CAP)),
             this.y + Math.max(-SMOOTH_CAP, Math.min(smoothY - this.y, SMOOTH_CAP)),
         ); // TODO: lerp instead of set
-        this.setAngle(
-            (this.angle * (1 - SMOOTH_FACTOR)) + ((angle + vAngle * dt) * SMOOTH_FACTOR)
+        this.bodySprite.setAngle(
+            (this.bodySprite.angle * (1 - SMOOTH_FACTOR)) + ((angle + vAngle * dt) * SMOOTH_FACTOR)
         ); // TODO: lerp instead of set
 
         if (color) {
@@ -223,11 +223,11 @@ export class Player extends Phaser.GameObjects.Container {
 
         this.isControlling = (isCtrl == null ? this.isControlling : isCtrl);
         this.setName(name);
-        this.nameTag.setText(name);
+        this.nameTag.setText(`${name} (${this.entityId})`);
         this.b2Body?.SetLinearVelocity({ x: vx, y: vy });
 
         console.log(diceColors);
-        
+
         diceColors.forEach((color, i) => {
             let diceSprite: Image = this.diceContainer.list[i] as Image;
             if (diceSprite == null) {
@@ -247,9 +247,10 @@ export class Player extends Phaser.GameObjects.Container {
         const radius = 32;
         this.diceContainer.list.forEach((diceSprite, i) => {
             if (i >= diceColors.length) {
-                diceSprite.setActive(false);
+                (diceSprite as Image).setVisible(false);
+                return;
             }
-            diceSprite.setActive(true);
+            (diceSprite as Image).setVisible(true);
 
             (diceSprite as Image).setPosition(
                 Math.cos(increment * i) * radius,

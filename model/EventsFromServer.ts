@@ -25,11 +25,16 @@ export type PlayerState = {
     vAngle: number,
 }
 
+
 export type AttackHappenedMessage = {
     untilTick: number;
-    attackerSocketId: string;
-    defenderSocketId: string;
-    attackerRolls: number[];
-    defenderRolls: number[];
-    attackerWins: boolean;
+    result: 'A' | 'B' | 'DRAW';
+    playerAId: number;
+    playerBId: number;
+    rollsSuitA: string[];
+    rollsSuitB: string[];
+    netDamageA: number;
+    netDamageB: number;
+    transferredIndex: number;
 };
+
