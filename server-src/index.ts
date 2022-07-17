@@ -1,6 +1,7 @@
 import 'dotenv/config'
+import { createServer } from "https";
 import { Server, Socket } from "socket.io"
-import * as fs from 'fs'
+import { readFileSync } from 'fs'
 import { Game } from './Game.js'
 import { DashMessage, StartMessage } from '../model/EventsFromClient'
 import { USE_SSL, PORT_WSS, PORT_WS, PHYSICS_FRAME_SIZE } from './constants'
@@ -9,15 +10,22 @@ import * as Debug from 'debug';
 
 Debug.enable('dice-io:*:log');
 
+
 const io = (() => {
     if (USE_SSL) {
         console.log(`Starting WSS server at ${PORT_WSS}`);
-        return new Server(PORT_WSS, {
+
+        const httpsServer = createServer({
+            key: readFileSync("~/.ssh/ssl-key.pem"),
+            cert: readFileSync("~/.ssh/ssl-cert.crt"),
+            requestCert: true,
+        });
+        return new Server(httpsServer, {
             serveClient: false,
             // key: fs.readFileSync('./ssl_key.key'),
             // cert: fs.readFileSync('./ssl_cert.crt'),
             cors: {
-                origin: "https://vicksonzero.itch.io",
+                origin: "*",
                 methods: ["GET", "POST"]
             }
         });
@@ -72,7 +80,7 @@ io.on("connection", (socket: Socket) => {
         clearInterval(interval);
         clearInterval(interval2);
     });
-    
+
     socket.on("dash", (data: DashMessage) => {
         const { dashVector } = data;
         console.log(`Socket dash. (${dashVector.x}, ${dashVector.y})`);
