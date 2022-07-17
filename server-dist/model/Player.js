@@ -20,6 +20,8 @@ const getPhysicsDefinitions = (radius) => {
     const bodyDef = new box2d_1.b2BodyDef();
     // dynamic(moving), static(walls) or kinematic(moving walls)
     bodyDef.type = box2d_1.b2BodyType.b2_dynamicBody;
+    bodyDef.linearDamping = 0.005;
+    bodyDef.angularDamping = 0.0005;
     // sleeping disables physics when not moving.
     // troublesome to wake it back though
     bodyDef.allowSleep = false;

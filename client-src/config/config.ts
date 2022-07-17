@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml';
-import { Immutable } from "../utils/ImmutableType";
+import { Immutable } from "../../utils/ImmutableType";
 
 const txt: any = require('./conf.yml');
 

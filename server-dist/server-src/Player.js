@@ -25,6 +25,7 @@ class Player {
         this.friction = 0;
         this.vx = 0;
         this.vy = 0;
+        this.vAngle = 0;
         this.diceList = [];
         this.entityId = (0, UniqueID_1.getUniqueID)();
     }
@@ -63,6 +64,7 @@ class Player {
         const v = new box2d_1.b2Vec2(dashVector.x, dashVector.y);
         v.SelfMul(constants_js_1.PIXEL_TO_METER);
         this.b2Body.ApplyLinearImpulse(v, { x: pos.x, y: pos.y }, true);
+        this.b2Body.ApplyAngularImpulse(dashVector.x * 100, true);
     }
 }
 exports.Player = Player;

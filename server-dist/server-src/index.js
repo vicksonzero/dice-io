@@ -4,6 +4,7 @@ require("dotenv/config");
 const socket_io_1 = require("socket.io");
 const Game_js_1 = require("./Game.js");
 const constants_1 = require("./constants");
+require("source-map-support/register");
 const Debug = require("debug");
 Debug.enable('dice-io:*:log');
 const io = (() => {
@@ -36,34 +37,33 @@ setInterval(() => game.update(), constants_1.PHYSICS_FRAME_SIZE);
 io.on("connection", (socket) => {
     const count = io.engine.clientsCount;
     console.log(`Socket (${count}) connected. id=${socket.id}`);
-    const sendState = () => {
-        const players = game.getViewForPlayer(socket.id);
+    const sendState = (isFullState = false) => {
+        const playerStateList = game.getViewForPlayer(socket.id, isFullState);
         // console.log(`Socket sendState. (${players?.length})`);
-        if (players && players.length > 0) {
-            socket.emit('state', players);
+        if (playerStateList && playerStateList.state.length > 0) {
+            socket.emit('state', playerStateList);
         }
     };
-    const interval = setInterval(sendState, 1000);
+    const interval = setInterval(() => sendState(true), 1000);
+    const interval2 = setInterval(sendState, 50);
     socket.on("start", (data) => {
         const { name } = data;
         console.log(`Socket player start. name=${name}`);
         game.onPlayerConnected(name, socket.id);
-        // const players = game.getViewForPlayer(socket);
-        // if (players && players.length > 0) {
-        //     socket.emit('welcome', players);
-        //     return;
-        // }
         socket.emit('welcome');
+        sendState(true);
     });
     socket.on("disconnect", () => {
         console.log(`Socket disconnected. (id=${socket.id})`);
         game.onPlayerDisconnected(socket.id);
         clearInterval(interval);
+        clearInterval(interval2);
     });
     socket.on("dash", (data) => {
         const { dashVector } = data;
         console.log(`Socket dash. (${dashVector.x}, ${dashVector.y})`);
         game.onPlayerDash(socket.id, dashVector);
+        sendState();
     });
 });
 //# sourceMappingURL=index.js.map

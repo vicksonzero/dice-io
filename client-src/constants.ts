@@ -6,6 +6,8 @@ export const CAMERA_HEIGHT = 640; // px
 export const BASE_LINE_WIDTH = 100; // px
 export const METER_TO_PIXEL = 20; // pixel per meter
 export const PIXEL_TO_METER = 1 / METER_TO_PIXEL; // meter per pixel
+export const SMOOTH_FACTOR = 0.1;
+export const SMOOTH_CAP = 10;
 
 // game rules
 export const SPAWN_INTERVAL = 10000; // ms

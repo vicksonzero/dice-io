@@ -6,6 +6,7 @@ const Player_1 = require("./Player");
 const constants_1 = require("./constants");
 const PhysicsSystem_1 = require("./PhysicsSystem");
 const PhaserClock_1 = require("../model/PhaserClock");
+const DistanceMatrix_1 = require("../utils/DistanceMatrix");
 const verbose = Debug('dice-io:Game:verbose');
 class Game {
     constructor() {
@@ -13,8 +14,11 @@ class Game {
         this.frameSize = constants_1.PHYSICS_FRAME_SIZE; // ms
         this.lastUpdate = -1;
         this.physicsSystem = new PhysicsSystem_1.PhysicsSystem();
+        this.distanceMatrix = new DistanceMatrix_1.DistanceMatrix();
+        this.getTransformList = () => ([...this.players]);
         this.fixedTime = new PhaserClock_1.Clock();
         this.fixedElapsedTime = 0;
+        this.distanceMatrix.getTransformList = () => this.getTransformList();
     }
     init() {
         this.physicsSystem.init(this);
@@ -33,8 +37,7 @@ class Game {
         const player = Player_1.Player.create('npc');
         if (player)
             this.players.push(player);
-        player.createPhysics(this.physicsSystem, () => {
-        });
+        player.createPhysics(this.physicsSystem, () => { });
         return player;
     }
     randomizePlayerPosition(player) {
@@ -56,6 +59,7 @@ class Game {
             console.log('Body created');
         });
         this.randomizePlayerPosition(player);
+        this.distanceMatrix.insertTransform(player);
         console.log(`Created player ${player.entityId}`);
         return player;
     }
@@ -71,18 +75,20 @@ class Game {
         console.log(`Deleted player ${existingPlayer.entityId}`);
         return existingPlayer;
     }
-    getViewForPlayer(playerId) {
+    getViewForPlayer(playerId, isFullState = false) {
         const existingPlayer = this.getPlayerById(playerId);
         if (existingPlayer == null) {
             // console.warn('getViewForPlayer: no player found');
             return null;
         }
-        return (this.players
+        const state = (this.players
             .filter(player => {
             if (!player.b2Body)
                 return false;
-            // if (player.b2Body.m_linearVelocity.Length() < 0.01) return false;
+            // if (!isWelcome && player.b2Body.m_linearVelocity.Length() < 0.001) return false;
             // if (player.sync.lastUpdated==0) return false;
+            if (!isFullState && this.distanceMatrix.getDistanceBetween(existingPlayer, player) > 300)
+                return false;
             return true;
         })
             .map(player => {
@@ -92,7 +98,8 @@ class Game {
                 y: player.y,
                 vx: player.vx,
                 vy: player.vy,
-                angle: player.r,
+                angle: player.angle,
+                vAngle: player.vAngle,
                 r: player.r,
                 name: player.name,
                 color: player.color,
@@ -102,6 +109,10 @@ class Game {
                 diceCount: player.diceList.length,
             };
         }));
+        return {
+            tick: Date.now(),
+            state,
+        };
     }
     onPlayerDash(playerId, dashVector) {
         const player = this.getPlayerById(playerId);
@@ -139,7 +150,7 @@ class Game {
         verbose(`fixedUpdate start`);
         this.fixedTime.preUpdate(fixedTime, frameSize);
         this.physicsSystem.update(timeStep);
-        // this.distanceMatrix.init([this.bluePlayer, this.redPlayer, ...this.blueAi, ...this.redAi, ...this.items]);
+        this.distanceMatrix.init();
         this.updatePlayers();
         this.fixedTime.update(fixedTime, frameSize);
         // this.lateUpdate(fixedTime, frameSize);
@@ -159,7 +170,11 @@ class Game {
         }
         const updatedPlayers = this.players.filter(player => {
             return (player.sync.lastUpdated > 0);
-        }).map(player => [player.entityId, player.x].join(' '));
+        }).map(player => ([
+            player.entityId,
+            player.x.toFixed(1),
+            player.y.toFixed(1),
+        ].join(' ')));
         if (updatedPlayers.length > 0) {
             console.log(`updatedPlayers: ${updatedPlayers.join('\n')}`);
         }

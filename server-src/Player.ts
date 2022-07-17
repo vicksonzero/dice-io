@@ -27,6 +27,7 @@ export class Player {
     public friction = 0;
     public vx = 0;
     public vy = 0;
+    public vAngle = 0;
 
     public fixtureDef?: b2FixtureDef;
     public bodyDef?: b2BodyDef;
@@ -51,7 +52,7 @@ export class Player {
 
 
     createPhysics(physicsSystem: PhysicsSystem, physicsFinishedCallback?: () => void) {
-        const {fixtureDef, bodyDef} = getPhysicsDefinitions(this.r);
+        const { fixtureDef, bodyDef } = getPhysicsDefinitions(this.r);
 
         this.fixtureDef = fixtureDef;
 
@@ -82,5 +83,6 @@ export class Player {
         const v = new b2Vec2(dashVector.x, dashVector.y);
         v.SelfMul(PIXEL_TO_METER);
         this.b2Body.ApplyLinearImpulse(v, { x: pos.x, y: pos.y }, true);
+        this.b2Body.ApplyAngularImpulse(dashVector.x * 100, true);
     }
 }

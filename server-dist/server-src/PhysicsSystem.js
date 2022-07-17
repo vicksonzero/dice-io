@@ -50,6 +50,7 @@ class PhysicsSystem {
             const pos = body.GetPosition();
             const rot = body.GetAngle(); // radians
             const velo = body.GetLinearVelocity();
+            const vAngle = body.GetAngularVelocity() * constants_1.RADIAN_TO_DEGREE;
             const x = pos.x * constants_1.METER_TO_PIXEL;
             const y = pos.y * constants_1.METER_TO_PIXEL;
             const angle = rot * constants_1.RADIAN_TO_DEGREE;
@@ -62,6 +63,7 @@ class PhysicsSystem {
             gameObject.vx = velo.x;
             gameObject.vy = velo.y;
             gameObject.angle = angle;
+            gameObject.vAngle = vAngle;
             gameObject.sync.lastUpdated = lastUpdated ? Date.now() : 0;
         }
         // verbose('writeStateIntoGame\n' + verboseLogs.join('\n'));

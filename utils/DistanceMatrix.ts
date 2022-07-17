@@ -1,17 +1,20 @@
 import { GameObjects } from "phaser";
 
-export type TransformWithUniqueID = GameObjects.Components.Transform & { uniqueID: number };
+export type TransformWithEntityId = { x: number, y: number, entityId: number };
 
 export class DistanceMatrix {
 
     distanceMatrix: number[][] = [];
+
+    getTransformList = () => [] as TransformWithEntityId[];
     constructor() {
 
     }
-    init(transformList: TransformWithUniqueID[], graphics?: Phaser.GameObjects.Graphics) {
+    init(transformList = this.getTransformList(), graphics?: Phaser.GameObjects.Graphics) {
+
         const distanceMatrix: number[][] = [];
         transformList.forEach((transform) => {
-            distanceMatrix[transform.uniqueID] = [];
+            distanceMatrix[transform.entityId] = [];
         });
         transformList.forEach((transform1) => {
             transformList.forEach((transform2) => {
@@ -25,11 +28,7 @@ export class DistanceMatrix {
         this.distanceMatrix = distanceMatrix;
     }
 
-    updateTransform(transform: TransformWithUniqueID, transformList: TransformWithUniqueID[]) {
-        return this.insertTransform(transform, transformList);
-    }
-
-    insertTransform(transform: TransformWithUniqueID, transformList: TransformWithUniqueID[]) {
+    insertTransform(transform: TransformWithEntityId, transformList = this.getTransformList()) {
         const distanceMatrix = this.distanceMatrix.map((row) => [...row]);
         transformList.forEach((transform2) => {
             this.updateDistanceBetween(transform, transform2, distanceMatrix);
@@ -37,19 +36,22 @@ export class DistanceMatrix {
         this.distanceMatrix = distanceMatrix;
     }
 
-    removeTransform(transform: TransformWithUniqueID){
-        delete this.distanceMatrix[transform.uniqueID];
+    removeTransform(transform: TransformWithEntityId) {
+        delete this.distanceMatrix[transform.entityId];
     }
 
-    updateDistanceBetween(transform1: TransformWithUniqueID, transform2: TransformWithUniqueID, distanceMatrix: number[][]) {
+    updateDistanceBetween(transform1: TransformWithEntityId, transform2: TransformWithEntityId, distanceMatrix: number[][]) {
         const dx = transform1.x - transform2.x;
         const dy = transform1.y - transform2.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        distanceMatrix[transform1.uniqueID][transform2.uniqueID] = distance;
-        distanceMatrix[transform2.uniqueID][transform1.uniqueID] = distance;
+        if (!distanceMatrix[transform1.entityId]) {
+            distanceMatrix[transform1.entityId] = [];
+        }
+        distanceMatrix[transform1.entityId][transform2.entityId] = distance;
+        distanceMatrix[transform2.entityId][transform1.entityId] = distance;
     }
 
-    getDistanceBetween(transform1: TransformWithUniqueID, transform2: TransformWithUniqueID) {
-        return this.distanceMatrix[transform1.uniqueID][transform2.uniqueID];
+    getDistanceBetween(transform1: TransformWithEntityId, transform2: TransformWithEntityId) {
+        return this.distanceMatrix[transform1.entityId][transform2.entityId];
     }
 }

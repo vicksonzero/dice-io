@@ -3,7 +3,7 @@ import "phaser";
 import { WORLD_HEIGHT, WORLD_WIDTH, CAMERA_WIDTH, CAMERA_HEIGHT } from './constants';
 import { PhysicsSystem } from './PhysicsSystem';
 import { MainScene } from "./scenes/MainScene";
-import './utils/window';
+import '../utils/window';
 
 
 window._Debug = Debug;

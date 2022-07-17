@@ -1,7 +1,10 @@
 import { XY } from "@flyover/box2d";
 
 
-export type StateMessage = Array<PlayerState>;
+export type StateMessage = {
+    tick: number;
+    state: Array<PlayerState>
+};
 
 export type PlayerState = {
     entityId: number;
@@ -10,7 +13,7 @@ export type PlayerState = {
     angle: number; // in degrees
     r: number; // radius
 
-    name?: string;
+    name: string;
     color?: number;
     isHuman?: boolean;
     isCtrl?: boolean; // for the player receiving this state pack, is this Player themselves?
@@ -19,6 +22,7 @@ export type PlayerState = {
     diceCount: number;
     vx: number,
     vy: number,
+    vAngle: number,
 }
 
 export type AttackHappenedMessage = {

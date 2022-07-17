@@ -13,7 +13,7 @@ import { PHYSICS_FRAME_SIZE, PHYSICS_MAX_FRAME_CATCHUP, SPAWN_PADDING, WORLD_HEI
 import { StateMessage } from '../model/EventsFromServer';
 import { PhysicsSystem } from './PhysicsSystem';
 import { Clock } from '../model/PhaserClock';
-
+import { DistanceMatrix } from '../utils/DistanceMatrix'
 
 
 const verbose = Debug('dice-io:Game:verbose');
@@ -28,11 +28,13 @@ export class Game implements b2ContactListener {
     fixedElapsedTime: number;
 
     physicsSystem: PhysicsSystem = new PhysicsSystem();
+    distanceMatrix: DistanceMatrix = new DistanceMatrix();
 
 
     constructor() {
         this.fixedTime = new Clock();
         this.fixedElapsedTime = 0;
+        this.distanceMatrix.getTransformList = () => this.getTransformList();
     }
 
     init() {
@@ -54,9 +56,7 @@ export class Game implements b2ContactListener {
     spawnNpc() {
         const player = Player.create('npc');
         if (player) this.players.push(player);
-        player.createPhysics(this.physicsSystem, () => {
-
-        });
+        player.createPhysics(this.physicsSystem, () => { });
         return player;
     }
 
@@ -81,9 +81,9 @@ export class Game implements b2ContactListener {
         this.players.push(player);
         player.createPhysics(this.physicsSystem, () => {
             console.log('Body created');
-
         });
         this.randomizePlayerPosition(player);
+        this.distanceMatrix.insertTransform(player);
 
         console.log(`Created player ${player.entityId}`);
         return player;
@@ -104,18 +104,19 @@ export class Game implements b2ContactListener {
         return existingPlayer;
     }
 
-    getViewForPlayer(playerId: string): StateMessage | null {
+    getViewForPlayer(playerId: string, isFullState = false): StateMessage | null {
         const existingPlayer = this.getPlayerById(playerId);
         if (existingPlayer == null) {
             // console.warn('getViewForPlayer: no player found');
             return null;
         }
 
-        return (this.players
+        const state = (this.players
             .filter(player => {
                 if (!player.b2Body) return false;
-                // if (player.b2Body.m_linearVelocity.Length() < 0.01) return false;
+                // if (!isWelcome && player.b2Body.m_linearVelocity.Length() < 0.001) return false;
                 // if (player.sync.lastUpdated==0) return false;
+                if (!isFullState && this.distanceMatrix.getDistanceBetween(existingPlayer, player) > 300) return false;
 
                 return true;
             })
@@ -127,7 +128,8 @@ export class Game implements b2ContactListener {
                     y: player.y,
                     vx: player.vx,
                     vy: player.vy,
-                    angle: player.r, // in degrees
+                    angle: player.angle, // in degrees
+                    vAngle: player.vAngle,
                     r: player.r, // radius
 
                     name: player.name,
@@ -140,6 +142,11 @@ export class Game implements b2ContactListener {
                 };
             })
         );
+
+        return {
+            tick: Date.now(),
+            state,
+        };
     }
 
     onPlayerDash(playerId: string, dashVector: XY) {
@@ -189,13 +196,15 @@ export class Game implements b2ContactListener {
             timeStep,
             // (DEBUG_PHYSICS ? this.physicsDebugLayer : undefined)
         );
-        // this.distanceMatrix.init([this.bluePlayer, this.redPlayer, ...this.blueAi, ...this.redAi, ...this.items]);
+        this.distanceMatrix.init();
         this.updatePlayers();
 
         this.fixedTime.update(fixedTime, frameSize);
         // this.lateUpdate(fixedTime, frameSize);
         // verbose(`fixedUpdate complete`);
     }
+
+    getTransformList = () => ([...this.players]);
 
     updatePlayers() {
         const updatePlayer = (player: Player) => {
@@ -216,7 +225,13 @@ export class Game implements b2ContactListener {
 
         const updatedPlayers = this.players.filter(player => {
             return (player.sync.lastUpdated > 0);
-        }).map(player => [player.entityId, player.x].join(' '));
+        }).map(player => (
+            [
+                player.entityId,
+                player.x.toFixed(1),
+                player.y.toFixed(1),
+            ].join(' ')
+        ));
         if (updatedPlayers.length > 0) {
             console.log(`updatedPlayers: ${updatedPlayers.join('\n')}`);
 

@@ -22,9 +22,9 @@ import {
 // import { Immutable } from '../utils/ImmutableType';
 import { Player } from '../gameObjects/Player';
 import { IBodyUserData, IFixtureUserData, PhysicsSystem } from '../PhysicsSystem';
-import { DistanceMatrix } from '../utils/DistanceMatrix';
+import { DistanceMatrix } from '../../utils/DistanceMatrix';
 // import { GameObjects } from 'phaser';
-import { capitalize, lerpRadians } from '../utils/utils';
+import { capitalize, lerpRadians } from '../../utils/utils';
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 import { PlayerState, StateMessage } from '../../model/EventsFromServer';
@@ -54,8 +54,12 @@ export class MainScene extends Phaser.Scene {
     isGameOver: boolean;
     bg: Phaser.GameObjects.TileSprite;
 
+    // timing
     fixedTime: Phaser.Time.Clock;
     fixedElapsedTime: number;
+    frameSize = PHYSICS_FRAME_SIZE; // ms
+    lastUpdate = -1;
+    lastUpdateTick = 0;
 
     entityList: { [x: number]: Player } = {};
 
@@ -70,7 +74,7 @@ export class MainScene extends Phaser.Scene {
 
     btn_mute: Image;
 
-    redPlayer: Player;
+    mainPlayer?: Player;
 
     // sfx_shoot: BaseSound;
     // sfx_hit: BaseSound;
@@ -79,9 +83,6 @@ export class MainScene extends Phaser.Scene {
     // sfx_open: BaseSound;
     // sfx_bgm: BaseSound;
 
-    frameSize = PHYSICS_FRAME_SIZE; // ms
-    lastUpdate = -1;
-    distanceMatrix: DistanceMatrix;
     startButton: HTMLDivElement;
     startForm: HTMLFormElement;
 
@@ -128,11 +129,13 @@ export class MainScene extends Phaser.Scene {
             (window as any).socketT = this.socket;
         })
         this.socket.on("state", (playerStateList: StateMessage) => {
-            console.log(`Socket state (${playerStateList.length})`);
+            const entityIdList = playerStateList.state.map(p => p.entityId).join(', ');
+            console.log(`Socket state (${playerStateList.state.length}) [${entityIdList}]`);
             this.handlePlayerStateList(playerStateList);
         });
 
         this.socket.onAny((event, ...args) => {
+            if (event == 'state') return;
             console.log(`event ${event}`, ...args);
         });
     }
@@ -145,7 +148,6 @@ export class MainScene extends Phaser.Scene {
         this.fixedTime = new Phaser.Time.Clock(this);
         this.fixedElapsedTime = 0;
         // this.getPhysicsSystem().init(this as b2ContactListener);
-        this.distanceMatrix = new DistanceMatrix();
         this.isGameOver = false;
         this.bg = this.add.tileSprite(0, 0, WORLD_WIDTH, WORLD_HEIGHT, 'allSprites_default', 'tileGrass1');
         this.bg.setOrigin(0, 0);
@@ -215,7 +217,7 @@ export class MainScene extends Phaser.Scene {
             (DEBUG_PHYSICS ? this.physicsDebugLayer : undefined)
         );
         // this.distanceMatrix.init([this.bluePlayer, this.redPlayer, ...this.blueAi, ...this.redAi, ...this.items]);
-        this.updatePlayers();
+        this.updatePlayers(fixedTime, frameSize);
 
         this.fixedTime.update(fixedTime, frameSize);
         this.lateUpdate(fixedTime, frameSize);
@@ -264,17 +266,51 @@ export class MainScene extends Phaser.Scene {
 
 
         const clickRect = this.add.graphics();
-        clickRect.fillStyle(0xFFFFFF, 0.01);
-        clickRect.fillRect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
+        clickRect.fillStyle(0xFFFFFF, 0.1);
+        clickRect.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
         this.uiLayer.setScrollFactor(0);
         this.uiLayer.add([
             clickRect,
         ]);
 
+
+        clickRect.setInteractive({
+            hitArea: new Phaser.Geom.Rectangle(0, 0, WORLD_WIDTH, WORLD_HEIGHT),
+            hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            draggable: false,
+            dropZone: false,
+            useHandCursor: false,
+            cursor: 'pointer',
+            pixelPerfect: false,
+            alphaTolerance: 1
+        })
+            .on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: TouchEvent | MouseEvent) => {
+                // ...
+                console.log('pointerdown');
+
+            })
+            .on('pointerup', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: TouchEvent | MouseEvent) => {
+                // ...
+                console.log('pointerup', pointer.x, pointer.y);
+                if (this.mainPlayer == null) return;
+
+                const touchWorldPos = this.mainCamera.getWorldPoint(pointer.x, pointer.y);
+                console.log('pointerup', touchWorldPos.x, touchWorldPos.y);
+                const dashVector = {
+                    x: (touchWorldPos.x - this.mainPlayer.x) * 0.7,
+                    y: (touchWorldPos.y - this.mainPlayer.y) * 0.7
+                }
+                console.log('pointerup', dashVector);
+
+                this.socket.emit('dash', { dashVector });
+            });
     }
 
-    updatePlayers() {
+    updatePlayers(fixedTime: number, frameSize: number) {
+        for (const player of Object.values(this.entityList)) {
 
+            player.fixedUpdate(fixedTime, frameSize);
+        }
     }
 
     spawnPlayer(playerState: PlayerState) {
@@ -287,18 +323,25 @@ export class MainScene extends Phaser.Scene {
     }
 
     handlePlayerStateList(playerStateList: StateMessage) {
-        for (const playerState of playerStateList) {
-            const { entityId } = playerState;
+        const { tick, state } = playerStateList;
+
+        const dt = (tick - this.lastUpdateTick) / 1000;
+        for (const playerState of state) {
+            const { entityId, isCtrl } = playerState;
             if (!this.entityList[entityId]) {
                 const player = this.entityList[entityId] = this.spawnPlayer(playerState);
                 if (player.isControlling) {
                     console.log(`Me: ${playerState.entityId}`);
+                    this.mainPlayer = player;
                     this.mainCamera.startFollow(player, true, 0.2, 0.2);
                 }
             } else {
-                this.entityList[entityId].applyState(playerState);
+                this.entityList[entityId].applyState(playerState, dt);
+
+                // if (isCtrl) console.log('handlePlayerStateList', playerState);
             }
         }
+        this.lastUpdateTick = tick;
     }
 
 
@@ -308,7 +351,6 @@ export class MainScene extends Phaser.Scene {
         gameObject.on('destroy', () => {
             list.splice(list.indexOf(gameObject), 1);
             // delete this.instancesByID[gameObject.uniqueID];
-            this.distanceMatrix.removeTransform(gameObject);
         });
     }
 
