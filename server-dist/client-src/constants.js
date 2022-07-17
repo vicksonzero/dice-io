@@ -28,5 +28,7 @@ exports.AUDIO_START_MUTED = true; // default false
 exports.PHYSICS_FRAME_SIZE = 16; // ms
 exports.PHYSICS_ALLOW_SLEEPING = false; // default false
 exports.PHYSICS_MAX_FRAME_CATCHUP = 10; // times, default 10 times (10*16 = 160ms)
-exports.WS_URL = "ws://localhost:3000";
+exports.WS_URL = process.env.NODE_ENV == 'production'
+    ? "wss://gmtk2022.dickson.md"
+    : 'ws://localhost:3000';
 //# sourceMappingURL=constants.js.map

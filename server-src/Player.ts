@@ -38,7 +38,7 @@ export class Player {
     constructor() {
         this.entityId = getUniqueID();
     }
-    static create(name: string, socketId?: string) {
+    static create(name: string, tier = 0, socketId?: string) {
         const result = new Player();
         result.name = name;
 
@@ -46,6 +46,12 @@ export class Player {
             result.socketId = socketId;
             result.isHuman = true;
         }
+
+        result.diceList = [
+            Dice.getRandomDice(tier)!,
+            Dice.getRandomDice(tier)!,
+            Dice.getRandomDice(tier)!,
+        ];
 
         return result;
     }

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DiceSide = exports.Dice = void 0;
 class Dice {
     constructor() {
+        this.symbol = '';
         this.sides = [];
         this.color = 0xffffff;
         this.desc = '';
@@ -11,8 +12,9 @@ class Dice {
         // this.sides.forEach(side => side.weight = 1);
         this.sides[sideIndex].weight += 1;
     }
-    static create(sides, color, desc = '') {
+    static create(symbol, sides, color, desc = '') {
         const result = new Dice();
+        result.symbol = symbol;
         result.sides = sides.split('').map(sideType => DiceSide.create(sideType));
         result.color = color;
         result.desc = desc;
@@ -20,15 +22,12 @@ class Dice {
     }
     static getRandomDice(tier) {
         const name = Dice.getRandomDiceName(tier);
-        if (name == null)
-            return null;
         const def = Dice.diceDefinitions[name];
-        return Dice.create(def.sides, def.color, def.desc);
+        return Dice.create(name[0], def.sides, def.color, def.desc);
     }
     static getRandomDiceName(tier) {
-        const dist = Dice.diceDistribution[tier];
-        if (dist == null)
-            return null;
+        var _a;
+        let dist = (_a = Dice.diceDistribution[tier]) !== null && _a !== void 0 ? _a : Dice.diceDistribution[Dice.diceDistribution.length - 1];
         const weights = Object.entries(dist);
         const totalWeight = Object.values(dist).reduce((a, b) => a + b, 0);
         const diceThrow = Math.random() * totalWeight;
@@ -38,7 +37,8 @@ class Dice {
             ++index;
             const [name, weight] = weights[index];
             acc += weight;
-        } while (acc > diceThrow);
+        } while (!(diceThrow < acc) && index + 1 < weights.length);
+        // console.log(diceThrow.toFixed(1), totalWeight, index);
         const [name, weight] = weights[index];
         return name;
     }
@@ -46,13 +46,13 @@ class Dice {
 exports.Dice = Dice;
 Dice.diceDefinitions = {
     /* cSpell:disable */
-    WHITE: { sides: 'SSSHHM', color: 0xffffff, desc: 'Balanced basic dice' },
-    BLUE: { sides: 'SSHHHM', color: 0xffffff, desc: 'Defense dice' },
-    RED: { sides: 'SSSSHH', color: 0xffffff, desc: 'Offense dice' },
-    GREEN: { sides: 'VBSMM ', color: 0xffffff, desc: 'Poison dice' },
-    AQUA: { sides: 'FFSSMM', color: 0xffffff, desc: 'Speed dice' },
-    YELLOW: { sides: 'MMSHH ', color: 0xffffff, desc: 'Morale dice' },
-    PURPLE: { sides: 'BBHMMM', color: 0xffffff, desc: 'Knowledge dice' },
+    WHITE: { sides: 'SSSHHM', color: 0xc1e7e8, desc: 'Balanced basic dice' },
+    BLUE: { sides: 'SSHHHM', color: 0x4257f5, desc: 'Defense dice' },
+    RED: { sides: 'SSSSHH', color: 0xf55442, desc: 'Offense dice' },
+    GREEN: { sides: 'VBSMM ', color: 0x68d647, desc: 'Poison dice' },
+    AQUA: { sides: 'FFSSMM', color: 0x5fe8ed, desc: 'Speed dice' },
+    YELLOW: { sides: 'MMSHH ', color: 0xf5dd53, desc: 'Morale dice' },
+    PURPLE: { sides: 'BBHMMM', color: 0xc430e6, desc: 'Knowledge dice' },
     /* cSpell:enable */
 };
 Dice.diceDistribution = [

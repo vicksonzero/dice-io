@@ -36,6 +36,7 @@ export class Player extends Phaser.GameObjects.Container {
     debugRemoteDot: Graphics;
     debugExtrapolatedDot: Graphics;
     bodySprite: Image;
+    diceContainer: Container;
 
     fixtureDef?: b2FixtureDef;
     bodyDef?: b2BodyDef;
@@ -64,6 +65,9 @@ export class Player extends Phaser.GameObjects.Container {
                 x: 0, y: -32,
                 text: '',
                 style: { align: 'center', color: '#000000' },
+            }),
+            this.diceContainer = this.scene.make.container({
+                x: 0, y: 0,
             }),
             this.debugText = this.scene.make.text({
                 x: 32, y: -32,
@@ -97,7 +101,7 @@ export class Player extends Phaser.GameObjects.Container {
     }
 
     init(state: PlayerState): this {
-        const { entityId, x, y, angle, r, name, color, diceCount, isHuman, isCtrl: isControlling } = state;
+        const { entityId, x, y, angle, r, name, color, diceColors, isHuman, isCtrl: isControlling } = state;
         this.entityId = entityId;
         this.setPosition(x, y);
         this.r = r;
@@ -162,6 +166,13 @@ export class Player extends Phaser.GameObjects.Container {
 
         this.b2Body?.SetLinearVelocity({ x: vx, y: vy });
 
+        
+        this.diceContainer.setAngle(this.diceContainer.angle + 1);
+
+        for (const diceSprite of this.diceContainer.list) {
+            (diceSprite as Image).setAngle((diceSprite as Image).angle - 2);
+        }
+
 
         this.debugText.setText(this.isControlling ? `(${x.toFixed(1)}, ${y.toFixed(1)})` : '');
         this.debugRemoteDot.setPosition(x - this.x, y - this.y);
@@ -181,7 +192,7 @@ export class Player extends Phaser.GameObjects.Container {
             angle, vAngle,
             r,
             name, color,
-            diceCount,
+            diceColors,
             isHuman, isCtrl,
         } = state;
 
@@ -215,6 +226,37 @@ export class Player extends Phaser.GameObjects.Container {
         this.nameTag.setText(name);
         this.b2Body?.SetLinearVelocity({ x: vx, y: vy });
 
+        console.log(diceColors);
+        
+        diceColors.forEach((color, i) => {
+            let diceSprite: Image = this.diceContainer.list[i] as Image;
+            if (diceSprite == null) {
+                this.diceContainer.add([
+                    diceSprite = this.scene.make.image({
+                        x: 0, y: 0,
+                        key: 'd6',
+                    })
+                ]);
+                diceSprite.setScale(0.3);
+            }
+
+            diceSprite.setTint(color);
+        });
+
+        const increment = 2 * Math.PI / diceColors.length;
+        const radius = 32;
+        this.diceContainer.list.forEach((diceSprite, i) => {
+            if (i >= diceColors.length) {
+                diceSprite.setActive(false);
+            }
+            diceSprite.setActive(true);
+
+            (diceSprite as Image).setPosition(
+                Math.cos(increment * i) * radius,
+                Math.sin(increment * i) * radius,
+            );
+
+        })
 
         this.debugText.setText(this.isControlling ? `(${x.toFixed(1)}, ${y.toFixed(1)})` : '');
         this.debugRemoteDot.setPosition(x - this.x, y - this.y);

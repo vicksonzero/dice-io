@@ -5,6 +5,7 @@ const Player_1 = require("../model/Player");
 const UniqueID_1 = require("../model/UniqueID");
 const box2d_1 = require("@flyover/box2d");
 const constants_js_1 = require("./constants.js");
+const Dice_js_1 = require("./Dice.js");
 class Player {
     constructor() {
         this.socketId = '';
@@ -29,13 +30,18 @@ class Player {
         this.diceList = [];
         this.entityId = (0, UniqueID_1.getUniqueID)();
     }
-    static create(name, socketId) {
+    static create(name, tier = 0, socketId) {
         const result = new Player();
         result.name = name;
         if (socketId) {
             result.socketId = socketId;
             result.isHuman = true;
         }
+        result.diceList = [
+            Dice_js_1.Dice.getRandomDice(tier),
+            Dice_js_1.Dice.getRandomDice(tier),
+            Dice_js_1.Dice.getRandomDice(tier),
+        ];
         return result;
     }
     createPhysics(physicsSystem, physicsFinishedCallback) {

@@ -10,7 +10,7 @@ export function preload(this: Phaser.Scene) {
     );
 
     this.load.image('character', './assets/kenney_boardgameicons/character.png');
-
+    this.load.image('d6', './assets/kenney_boardgameicons/d6.png');
     // this.load.atlas('items_icon',
     //     './assets/sprites/dicksonmd/spritesheet (1).png',
     //     './assets/sprites/dicksonmd/spritesheet (1).json'

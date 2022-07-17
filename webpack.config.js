@@ -9,7 +9,7 @@ const pathToPhaser = path.join(__dirname, '/node_modules/phaser/');
 const phaser = path.join(pathToPhaser, 'dist/phaser.js');
 const TerserPlugin = require('terser-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
-
+const webpack = require('webpack');
 
 module.exports = {
     entry: {
@@ -101,6 +101,9 @@ module.exports = {
         // new CopyPlugin([
         //     { from: '*.html', context: 'client-src/' },
         //     { from: '**/*.css', context: 'client-src/' },
-        // ])
+        // ]),
+        new webpack.DefinePlugin({
+            'process.env.NODE_ENV': JSON.stringify(process.env.production ? 'production' : 'development')
+        })
     ],
 };

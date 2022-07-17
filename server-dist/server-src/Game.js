@@ -1,12 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Game = void 0;
+const box2d_1 = require("@flyover/box2d");
 const Debug = require("debug");
 const Player_1 = require("./Player");
 const constants_1 = require("./constants");
 const PhysicsSystem_1 = require("./PhysicsSystem");
 const PhaserClock_1 = require("../model/PhaserClock");
 const DistanceMatrix_1 = require("../utils/DistanceMatrix");
+const Names_1 = require("../model/Names");
+const Dice_1 = require("./Dice");
 const verbose = Debug('dice-io:Game:verbose');
 class Game {
     constructor() {
@@ -24,7 +27,6 @@ class Game {
         this.physicsSystem.init(this);
         for (let i = 0; i < 30; i++) {
             const player = this.spawnNpc();
-            this.randomizePlayerPosition(player);
         }
     }
     getPlayerById(socketId) {
@@ -34,11 +36,24 @@ class Game {
         return this.getPlayerById(socketId) != null;
     }
     spawnNpc() {
-        const player = Player_1.Player.create('npc');
-        if (player)
-            this.players.push(player);
-        player.createPhysics(this.physicsSystem, () => { });
-        return player;
+        const npc = Player_1.Player.create(Names_1.names[~~(Math.random() * Names_1.names.length)]);
+        if (npc)
+            this.players.push(npc);
+        npc.createPhysics(this.physicsSystem, () => { });
+        this.randomizePlayerPosition(npc);
+        const displacement = new box2d_1.b2Vec2(constants_1.WORLD_WIDTH / 2 - npc.x, constants_1.WORLD_HEIGHT / 2 - npc.y);
+        let tier = 0;
+        if (displacement.Length() < 600)
+            tier = 2;
+        else if (displacement.Length() < 1200)
+            tier = 1;
+        npc.diceList = [
+            Dice_1.Dice.getRandomDice(tier),
+            Dice_1.Dice.getRandomDice(tier),
+            Dice_1.Dice.getRandomDice(tier),
+        ];
+        console.log('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
+        return npc;
     }
     randomizePlayerPosition(player) {
         const padding = constants_1.SPAWN_PADDING + player.r;
@@ -53,7 +68,7 @@ class Game {
         if (existingPlayer != null) {
             return existingPlayer;
         }
-        const player = Player_1.Player.create(name, playerId);
+        const player = Player_1.Player.create(name, 0, playerId);
         this.players.push(player);
         player.createPhysics(this.physicsSystem, () => {
             console.log('Body created');
@@ -61,6 +76,7 @@ class Game {
         this.randomizePlayerPosition(player);
         this.distanceMatrix.insertTransform(player);
         console.log(`Created player ${player.entityId}`);
+        console.log('getRandomDice', player.diceList.map(d => d.symbol).join(''));
         return player;
     }
     onPlayerDisconnected(playerId) {
@@ -106,7 +122,7 @@ class Game {
                 isHuman: player.isHuman,
                 isCtrl: (player.socketId === playerId),
                 nextMoveTick: player.nextMoveTick,
-                diceCount: player.diceList.length,
+                diceColors: player.diceList.map(dice => dice.color),
             };
         }));
         return {
@@ -175,9 +191,9 @@ class Game {
             player.x.toFixed(1),
             player.y.toFixed(1),
         ].join(' ')));
-        if (updatedPlayers.length > 0) {
-            console.log(`updatedPlayers: ${updatedPlayers.join('\n')}`);
-        }
+        // if (updatedPlayers.length > 0) {
+        //     console.log(`updatedPlayers: ${updatedPlayers.join('\n')}`);
+        // }
     }
     BeginContact(pContact) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
