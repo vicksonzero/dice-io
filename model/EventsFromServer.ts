@@ -31,6 +31,8 @@ export type AttackHappenedMessage = {
     result: 'A' | 'B' | 'DRAW';
     playerAId: number;
     playerBId: number;
+    diceColorsA: number[],
+    diceColorsB: number[],
     rollsSuitA: string[];
     rollsSuitB: string[];
     netDamageA: number;

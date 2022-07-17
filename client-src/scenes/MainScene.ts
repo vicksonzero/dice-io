@@ -138,6 +138,7 @@ export class MainScene extends Phaser.Scene {
                 untilTick,
                 result,
                 playerAId, playerBId,
+                diceColorsA, diceColorsB,
                 rollsSuitA, rollsSuitB,
                 netDamageA, netDamageB,
                 transferredIndex,
@@ -154,14 +155,87 @@ export class MainScene extends Phaser.Scene {
             const playerA = this.entityList[playerAId];
             const playerB = this.entityList[playerBId];
 
-            const msgLabel = this.add.text(0, 0, msg, { align: 'center', color: '#000' });
-            this.effectsLayer.add(msgLabel);
-            msgLabel.setPosition(
+            // const msgLabel = this.add.text(0, 0, msg, { align: 'center', color: '#000' });
+            // this.effectsLayer.add(msgLabel);
+            // msgLabel.setPosition(
+            //     (playerA.x + playerB.x) / 2,
+            //     (playerA.y + playerB.y) / 2,
+            // );
+            // msgLabel.setName('score-label');
+            // msgLabel.setOrigin(0.5);
+            const msgLabel = this.add.container(
                 (playerA.x + playerB.x) / 2,
                 (playerA.y + playerB.y) / 2,
             );
+            this.effectsLayer.add(msgLabel);
             msgLabel.setName('score-label');
-            msgLabel.setOrigin(0.5);
+
+            msgLabel.add([
+                ...diceColorsA.map((color, i) => {
+                    const diceSprite = this.make.image({
+                        x: -20, y: 40 * i,
+                        key: 'd6',
+                    });
+
+                    diceSprite.setScale(0.6);
+                    diceSprite.setTint(color);
+
+                    return diceSprite;
+                }),
+                ...rollsSuitA.filter(suit => suit != ' ').map((suit: string, i) => {
+                    const key = {
+                        " ": 0, //  =Blank
+                        "S": 'sword', // S=Sword
+                        "H": 'shield', // H=Shield
+                        "M": 'structure_tower', // M=Morale
+                        "B": 'book_open', // B=Book
+                        "V": 'skull', // V=Venom
+                        "F": 'fastForward', // F=Fast
+                    }[suit];
+                    const diceSprite = this.make.image({
+                        x: -20, y: 40 * i,
+                        key,
+                    });
+
+                    diceSprite.setScale(0.4);
+                    diceSprite.setTint(0x444444);
+
+                    return diceSprite;
+                }),
+                ...diceColorsB.map((color, i) => {
+                    const diceSprite = this.make.image({
+                        x: 20, y: 40 * i,
+                        key: 'd6',
+                    });
+
+                    diceSprite.setScale(0.6);
+                    diceSprite.setTint(color);
+
+                    return diceSprite;
+                }),
+                ...rollsSuitB.filter(suit => suit != ' ').map((suit: string, i) => {
+                    const key = {
+                        " ": 0, //  =Blank
+                        "S": 'sword', // S=Sword
+                        "H": 'shield', // H=Shield
+                        "M": 'structure_tower', // M=Morale
+                        "B": 'book_open', // B=Book
+                        "V": 'skull', // V=Venom
+                        "F": 'fastForward', // F=Fast
+                    }[suit];
+                    const diceSprite = this.make.image({
+                        x: 20, y: 40 * i,
+                        key,
+                    });
+
+                    diceSprite.setScale(0.4);
+                    diceSprite.setTint(0x444444);
+
+                    return diceSprite;
+                }),
+            ]);
+
+
         });
 
         this.socket.onAny((event, ...args) => {
@@ -251,7 +325,7 @@ export class MainScene extends Phaser.Scene {
         for (const child of this.effectsLayer.list) {
             if (child.name == 'score-label') {
                 (child as any).setAlpha((child as any).alpha - 0.001);
-                if((child as any).alpha <=0.02){
+                if ((child as any).alpha <= 0.02) {
                     child.destroy();
                 }
             }

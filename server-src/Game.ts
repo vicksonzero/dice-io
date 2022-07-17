@@ -411,6 +411,8 @@ export class Game implements b2ContactListener {
             result,
             playerAId: playerA.entityId,
             playerBId: playerB.entityId,
+            diceColorsA: playerA.diceList.map(dice => dice.color),
+            diceColorsB: playerB.diceList.map(dice => dice.color),
             rollsSuitA: rollsA.map(roll => roll.suit),
             rollsSuitB: rollsB.map(roll => roll.suit),
             netDamageA,
