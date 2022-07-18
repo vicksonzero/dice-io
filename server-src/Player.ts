@@ -102,7 +102,7 @@ export class Player {
     destroyPhysics(physicsSystem: PhysicsSystem) {
         if (!this.b2Body) return;
         log('destroyPhysics', this.entityId);
-        
+
         physicsSystem.scheduleDestroyBody(this.b2Body);
         this.b2Body.m_userData.gameObject = null;
     }
@@ -124,5 +124,23 @@ export class Player {
             true
         );
         // this.b2Body.ApplyAngularImpulse(dashVector.x * 1, true);
+    }
+
+    dashAwayFrom(other: Player, force: number) {
+        if (this.b2Body == null) return;
+        const awayVector = new b2Vec2(
+            this.x - other.x,
+            this.y - other.y
+        );
+        awayVector.SelfNormalize().SelfMul(force * PIXEL_TO_METER);
+        const pos = this.b2Body.GetPosition();
+        this.b2Body.ApplyLinearImpulse(
+            awayVector,
+            {
+                x: pos.x,
+                y: pos.y,
+            },
+            true
+        );
     }
 }

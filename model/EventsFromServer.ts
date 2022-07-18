@@ -29,6 +29,8 @@ export type PlayerState = {
 export type AttackHappenedMessage = {
     untilTick: number;
     result: 'A' | 'B' | 'DRAW';
+    playerAPos: XY;
+    displacementAB: XY;
     playerAId: number;
     playerBId: number;
     diceColorsA: number[],

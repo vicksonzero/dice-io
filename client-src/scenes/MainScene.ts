@@ -2,7 +2,8 @@ import {
     b2Contact, b2ContactImpulse, b2ContactListener,
     b2Fixture, b2Manifold,
     b2ParticleBodyContact, b2ParticleContact, b2ParticleSystem,
-    b2Shape
+    b2Shape,
+    b2Vec2
 } from '@flyover/box2d';
 import * as Debug from 'debug';
 import "phaser";
@@ -46,6 +47,7 @@ const KeyCodes = Phaser.Input.Keyboard.KeyCodes;
 const verbose = Debug('dice-io:MainScene:verbose');
 const log = Debug('dice-io:MainScene:log');
 const socketLog = Debug('dice-io:MainScene.socket:log');
+socketLog.log = console.log.bind(console);
 // const warn = Debug('dice-io:MainScene:warn');
 // warn.log = console.warn.bind(console);
 
@@ -163,12 +165,18 @@ export class MainScene extends Phaser.Scene {
             const {
                 untilTick,
                 result,
+                playerAPos, displacementAB,
                 playerAId, playerBId,
                 diceColorsA, diceColorsB,
                 rollsSuitA, rollsSuitB,
                 netDamageA, netDamageB,
                 transferredIndex,
             } = message;
+
+            const vectorAB = new b2Vec2(
+                displacementAB.x,
+                displacementAB.y
+            );
 
             const msg = [`fight: \n`,
                 `${playerAId}(${rollsSuitA.join('')}, ${netDamageA}dmg)\n`,
@@ -180,6 +188,15 @@ export class MainScene extends Phaser.Scene {
 
             const playerA = this.entityList[playerAId];
             const playerB = this.entityList[playerBId];
+
+            if (!playerA) {
+                console.warn(`Fight: PlayerA ${playerAId} not found.`);
+                return;
+            }
+            if (!playerB) {
+                console.warn(`Fight: PlayerB ${playerBId} not found.`);
+                return;
+            }
 
             // const msgLabel = this.add.text(0, 0, msg, { align: 'center', color: '#000' });
             // this.effectsLayer.add(msgLabel);
@@ -196,21 +213,90 @@ export class MainScene extends Phaser.Scene {
             this.effectsLayer.add(msgLabel);
             msgLabel.setName('score-label');
 
+            const rotation = Math.atan2(
+                vectorAB.y,
+                vectorAB.x
+            );
+
+            console.log('displacementAB', result, (result == 'A' ? playerA.name : playerB.name));
+            console.log('displacementAB', vectorAB.x, vectorAB.y);
+
+            if (result == 'DRAW') {
+                vectorAB.SelfMul(0.5);
+                msgLabel.setPosition(
+                    playerA.x + vectorAB.x,
+                    playerA.y + vectorAB.y
+                );
+            }
+            if (result == 'A') {
+                vectorAB.SelfNormalize().SelfMul(40);
+                msgLabel.setPosition(
+                    playerA.x + vectorAB.x,
+                    playerA.y + vectorAB.y
+                );
+            }
+            if (result == 'B') {
+                console.log('hi');
+                
+                vectorAB.SelfNormalize().SelfMul(-80);
+                msgLabel.setPosition(
+                    playerB.x + vectorAB.x,
+                    playerB.y + vectorAB.y
+                );
+            }
+
+
+
+            // const dirCardinal = (() => {
+            //     return ~~(((rotation - Math.PI / 2) + Math.PI / 4) / (Math.PI / 2));
+            // })();
+            // msgLabel.setRotation(dirCardinal * Math.PI / 2);
+            // console.log('dirCardinal', dirCardinal);
+
+            msgLabel.setRotation(rotation - Math.PI / 2);
+
+
+            // this.effectsLayer.add(
+            //     this.make.image({
+            //         x: playerA.x, y: playerA.y,
+            //         key: 'd6',
+            //     })
+            //         .setScale(0.4)
+            //         .setTint(0xFF8888)
+            //     // .setName('score-label')
+            // );
+
+            // this.effectsLayer.add(
+            //     this.make.image({
+            //         x: playerB.x, y: playerB.y,
+            //         key: 'd6',
+            //     })
+            //         .setScale(0.2)
+            //         .setTint(0x8888FF)
+            //     // .setName('score-label')
+            // );
+
             msgLabel.add([
+                this.make.image({
+                    x: 0, y: 0,
+                    key: 'd6',
+                }).setScale(0.2).setTint(0),
+
                 ...diceColorsA.map((color, i) => {
                     const diceSprite = this.make.image({
-                        x: -20, y: 40 * i,
+                        x: 40 * i - ((diceColorsA.length - 1) * 40 / 2), y: -20,
                         key: 'd6',
                     });
 
+                    diceSprite.setRotation(-msgLabel.rotation);
                     diceSprite.setScale(0.6);
                     diceSprite.setTint(color);
 
                     return diceSprite;
                 }),
-                ...rollsSuitA.filter(suit => suit != ' ').map((suit: string, i) => {
+                ...rollsSuitA.map((suit: string, i) => {
                     const key = {
-                        " ": 0, //  =Blank
+                        " ": '', //  =Blank
                         "S": 'sword', // S=Sword
                         "H": 'shield', // H=Shield
                         "M": 'structure_tower', // M=Morale
@@ -219,10 +305,12 @@ export class MainScene extends Phaser.Scene {
                         "F": 'fastForward', // F=Fast
                     }[suit];
                     const diceSprite = this.make.image({
-                        x: -20, y: 40 * i,
+                        x: 40 * i - ((diceColorsA.length - 1) * 40 / 2), y: -20,
                         key,
                     });
 
+                    diceSprite.setRotation(-msgLabel.rotation);
+                    // diceSprite.setRotation(-dirCardinal * Math.PI / 2);
                     diceSprite.setScale(0.4);
                     diceSprite.setTint(0x444444);
 
@@ -230,18 +318,19 @@ export class MainScene extends Phaser.Scene {
                 }),
                 ...diceColorsB.map((color, i) => {
                     const diceSprite = this.make.image({
-                        x: 20, y: 40 * i,
+                        x: 40 * i - ((diceColorsB.length - 1) * 40 / 2), y: 20,
                         key: 'd6',
                     });
 
+                    diceSprite.setRotation(-msgLabel.rotation);
                     diceSprite.setScale(0.6);
                     diceSprite.setTint(color);
 
                     return diceSprite;
                 }),
-                ...rollsSuitB.filter(suit => suit != ' ').map((suit: string, i) => {
+                ...rollsSuitB.map((suit: string, i) => {
                     const key = {
-                        " ": 0, //  =Blank
+                        " ": '', //  =Blank
                         "S": 'sword', // S=Sword
                         "H": 'shield', // H=Shield
                         "M": 'structure_tower', // M=Morale
@@ -250,10 +339,12 @@ export class MainScene extends Phaser.Scene {
                         "F": 'fastForward', // F=Fast
                     }[suit];
                     const diceSprite = this.make.image({
-                        x: 20, y: 40 * i,
+                        x: 40 * i - ((diceColorsB.length - 1) * 40 / 2), y: 20,
                         key,
                     });
 
+                    diceSprite.setRotation(-msgLabel.rotation);
+                    // diceSprite.setRotation(-dirCardinal * Math.PI / 2);
                     diceSprite.setScale(0.4);
                     diceSprite.setTint(0x444444);
 
@@ -357,10 +448,13 @@ export class MainScene extends Phaser.Scene {
         );
         // this.distanceMatrix.init([this.bluePlayer, this.redPlayer, ...this.blueAi, ...this.redAi, ...this.items]);
         this.updatePlayers(fixedTime, frameSize);
-        for (const child of this.effectsLayer.list) {
+        for (const child of (this.effectsLayer.list as Container[])) {
             if (child.name == 'score-label') {
-                (child as any).setAlpha((child as any).alpha - 0.001);
-                if ((child as any).alpha <= 0.02) {
+                if (child.alpha > 0.8) {
+                    child.setAlpha(child.alpha * 0.995);
+                } else if (child.alpha > 0.02) {
+                    child.setAlpha(child.alpha * 0.99);
+                } else {
                     child.destroy();
                 }
             }

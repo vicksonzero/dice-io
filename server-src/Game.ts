@@ -132,6 +132,7 @@ export class Game implements b2ContactListener {
         }
 
         const player = Player.create(name, 0, playerId);
+        player.isHuman = true;
         this.players.push(player);
         player.createPhysics(this.physicsSystem, () => {
         });
@@ -150,8 +151,8 @@ export class Game implements b2ContactListener {
             return;
         }
 
-
-        // TODO: clean up existingPlayer
+        existingPlayer.destroyPhysics(this.physicsSystem);
+        this.distanceMatrix.removeTransform(existingPlayer);
         this.players.splice(this.players.indexOf(existingPlayer), 1);
 
         spawnLog(`Deleted player ${existingPlayer.entityId}`);
@@ -315,7 +316,7 @@ export class Game implements b2ContactListener {
             const player = this.players[i];
             if (player.deleteAfterTick != null && Date.now() > player.deleteAfterTick) {
                 this.reuseNpc(player);
-            } else if (!player.isControlling && (player.x < 0 || player.x > WORLD_WIDTH || player.y < 0 || player.y > WORLD_HEIGHT)) {
+            } else if (!player.isHuman && (player.x < 0 || player.x > WORLD_WIDTH || player.y < 0 || player.y > WORLD_HEIGHT)) {
                 this.reuseNpc(player);
             }
             i++;
@@ -474,8 +475,8 @@ export class Game implements b2ContactListener {
         const suitCountA = RollsStats.create(rollsA).suitCount;
         const suitCountB = RollsStats.create(rollsB).suitCount;
 
-        const netDamageA = Math.max(0, suitCountA.S + buffsA.B + buffsB.V - suitCountB.B);
-        const netDamageB = Math.max(0, suitCountB.S + buffsB.B + buffsA.V - suitCountA.B);
+        const netDamageA = Math.max(0, suitCountA.S + buffsA.B + buffsB.V - suitCountB.H);
+        const netDamageB = Math.max(0, suitCountB.S + buffsB.B + buffsA.V - suitCountA.H);
 
 
         let result: 'A' | 'B' | 'DRAW' = 'DRAW';
@@ -490,10 +491,20 @@ export class Game implements b2ContactListener {
         buffsB.B += suitCountB.B;
         buffsB.V += suitCountA.V;
 
+        const playerAPos = {
+            x: playerA.x,
+            y: playerA.y
+        }
+        const displacementAB = {
+            x: playerB.x - playerA.x,
+            y: playerB.y - playerA.y
+        }
 
         const message: AttackHappenedMessage = {
             untilTick: Date.now() + 3000,
             result,
+            playerAPos,
+            displacementAB,
             playerAId: playerA.entityId,
             playerBId: playerB.entityId,
             diceColorsA: playerA.diceList.map(dice => dice.color),
@@ -514,12 +525,27 @@ export class Game implements b2ContactListener {
             }
             if (losingPlayer.diceList.length <= 0) {
                 // kill losingPlayer
-                if (!losingPlayer.isControlling && losingPlayer.deleteAfterTick == null) {
+                if (losingPlayer.deleteAfterTick == null) {
                     losingPlayer.deleteAfterTick = Date.now() + 5000;
                 }
             }
-
         }
+
+        playerA.b2Body?.SetLinearVelocity({ x: 0, y: 0 });
+        playerA.b2Body?.SetAngularVelocity(0);
+        playerB.b2Body?.SetLinearVelocity({ x: 0, y: 0 });
+        playerB.b2Body?.SetAngularVelocity(0);
+
+        if (result == 'DRAW') {
+            playerA.dashAwayFrom(playerB, 20);
+            playerB.dashAwayFrom(playerA, 20);
+        } else {
+            const winningPlayer = result == 'A' ? playerA : playerB;
+            const losingPlayer = result == 'A' ? playerB : playerA;
+
+            losingPlayer.dashAwayFrom(winningPlayer, 20);
+        }
+
         fightLog([`fight: `,
             `${playerA.entityId}(${message.rollsSuitA.join('')}, ${netDamageA}dmg)`,
             ` vs ` +
