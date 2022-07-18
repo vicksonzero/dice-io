@@ -29,6 +29,7 @@ export class Player extends Phaser.GameObjects.Container {
     tint: number;
     isControlling: boolean;
     r: number; // radius
+    nextCanShoot: number = 0;
 
     // sprites
     debugText: Text;
@@ -104,7 +105,7 @@ export class Player extends Phaser.GameObjects.Container {
     }
 
     init(state: PlayerState): this {
-        const { entityId, x, y, angle, r, name, color, diceColors, isHuman, isCtrl: isControlling } = state;
+        const { entityId, x, y, angle, r, name, color, diceColors, nextCanShoot, isHuman, isCtrl: isControlling } = state;
         this.entityId = entityId;
         this.setPosition(x, y);
         this.r = r;
@@ -116,6 +117,7 @@ export class Player extends Phaser.GameObjects.Container {
         this.isControlling = (isControlling == null ? this.isControlling : isControlling);
         this.setName(`Player ${name} ${this.isControlling ? '(Me)' : ''}`);
 
+        this.diceContainer.setVisible(Date.now() >= nextCanShoot);
         this.bodySprite.setAngle(angle);
         return this;
     }
@@ -197,6 +199,7 @@ export class Player extends Phaser.GameObjects.Container {
             name, color,
             diceColors,
             isHuman, isCtrl,
+            nextCanShoot,
         } = state;
 
 
@@ -226,6 +229,8 @@ export class Player extends Phaser.GameObjects.Container {
 
         this.isControlling = (isCtrl == null ? this.isControlling : isCtrl);
         this.setName(name);
+        
+        this.diceContainer.setVisible(Date.now() >= nextCanShoot);
 
         const entityIdStr = this._debugShowEntityId ? ` (${this.entityId})` : ``;
         this.nameTag.setText(`${name}${entityIdStr}`);

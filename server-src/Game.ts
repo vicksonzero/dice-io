@@ -192,6 +192,7 @@ export class Game implements b2ContactListener {
                     isHuman: player.isHuman,
                     isCtrl: (player.socketId === playerId), // for the player receiving this state pack, is this Player themselves?
                     nextMoveTick: player.nextMoveTick,
+                    nextCanShoot: player.nextCanShoot,
 
                     diceColors: player.diceList.map(dice => dice.color),
                 };
@@ -305,6 +306,9 @@ export class Game implements b2ContactListener {
             let xx = 0;
             let yy = 0;
 
+            if (!player.isHuman && player.canShoot()) {
+                // const closestPlayer = this.distanceMatrix.distanceMatrix[player.entityId]
+            }
 
             // player.doCollision();
             // player.tank?.repair();
@@ -466,6 +470,10 @@ export class Game implements b2ContactListener {
     }
 
     fight(playerA: Player, playerB: Player) {
+        if (!playerA.canShoot() || !playerB.canShoot()) {
+            // TODO: send a message to tell client side
+            return;
+        }
         const rollsA = playerA.diceList.map(dice => dice.roll());
         const rollsB = playerB.diceList.map(dice => dice.roll());
 
@@ -529,6 +537,7 @@ export class Game implements b2ContactListener {
                     losingPlayer.deleteAfterTick = Date.now() + 5000;
                 }
             }
+
         }
 
         playerA.b2Body?.SetLinearVelocity({ x: 0, y: 0 });
@@ -539,9 +548,15 @@ export class Game implements b2ContactListener {
         if (result == 'DRAW') {
             playerA.dashAwayFrom(playerB, 20);
             playerB.dashAwayFrom(playerA, 20);
+
+            playerA.nextCanShoot = Date.now() + 2000;
+            playerB.nextCanShoot = Date.now() + 2000;
         } else {
             const winningPlayer = result == 'A' ? playerA : playerB;
             const losingPlayer = result == 'A' ? playerB : playerA;
+
+            winningPlayer.nextCanShoot = Date.now() + 3000;
+            losingPlayer.nextCanShoot = Date.now() + 3000;
 
             losingPlayer.dashAwayFrom(winningPlayer, 20);
         }

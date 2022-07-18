@@ -40,7 +40,7 @@ export const getPhysicsDefinitions = (radius: number) => {
 
 
     bodyDef.linearDamping = 0.005;
-    bodyDef.angularDamping = 1;
+    bodyDef.angularDamping = 3;
 
     // sleeping disables physics when not moving.
     // troublesome to wake it back though

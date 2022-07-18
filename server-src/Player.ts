@@ -21,6 +21,7 @@ export class Player {
     };
     public deleteAfterTick?: number;
 
+    public nextCanShoot = 0;
     public buffs = {
         B: 0, // in next fight, deal x more damage
         V: 0, // in next fight, take x more damage
@@ -107,6 +108,10 @@ export class Player {
         this.b2Body.m_userData.gameObject = null;
     }
 
+    canShoot() {
+        return Date.now() >= this.nextCanShoot;
+    }
+
     applyDashImpulse(dashVector: XY) {
         if (this.b2Body == null) return;
 
@@ -114,7 +119,7 @@ export class Player {
         const v = new b2Vec2(dashVector.x, dashVector.y);
         v.SelfMul(PIXEL_TO_METER);
 
-        const angularFlick = 0.8;
+        const angularFlick = 0.7;
         this.b2Body.ApplyLinearImpulse(
             v,
             {

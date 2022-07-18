@@ -18,6 +18,7 @@ export type PlayerState = {
     isHuman?: boolean;
     isCtrl?: boolean; // for the player receiving this state pack, is this Player themselves?
     nextMoveTick?: number;
+    nextCanShoot: number;
 
     diceColors: number[];
     vx: number,

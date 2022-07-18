@@ -236,8 +236,7 @@ export class MainScene extends Phaser.Scene {
                 );
             }
             if (result == 'B') {
-                console.log('hi');
-                
+
                 vectorAB.SelfNormalize().SelfMul(-80);
                 msgLabel.setPosition(
                     playerB.x + vectorAB.x,
@@ -291,6 +290,26 @@ export class MainScene extends Phaser.Scene {
                     diceSprite.setRotation(-msgLabel.rotation);
                     diceSprite.setScale(0.6);
                     diceSprite.setTint(color);
+                    diceSprite.setVisible(false);
+
+                    console.log('hi');
+                    this.fixedTime.addEvent({
+                        delay: 50,
+                        callback: () => {
+                            diceSprite.setVisible(true);
+                            const pos = msgLabel.getLocalPoint(playerA.x, playerA.y);
+                            this.add.tween({
+                                targets: diceSprite,
+                                x: { from: pos.x, to: diceSprite.x },
+                                y: { from: pos.y, to: diceSprite.y },
+                                scale: { from: 0.3, to: 0.6 },
+                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
+                                duration: 500,
+                                repeat: 0, // -1: infinity
+                                yoyo: false
+                            });
+                        },
+                    });
 
                     return diceSprite;
                 }),
@@ -313,6 +332,26 @@ export class MainScene extends Phaser.Scene {
                     // diceSprite.setRotation(-dirCardinal * Math.PI / 2);
                     diceSprite.setScale(0.4);
                     diceSprite.setTint(0x444444);
+                    diceSprite.setVisible(false);
+                    if (suit == ' ') diceSprite.setVisible(false);
+
+                    this.fixedTime.addEvent({
+                        delay: 50,
+                        callback: () => {
+                            if (suit != ' ') diceSprite.setVisible(true);
+                            const pos = msgLabel.getLocalPoint(playerA.x, playerA.y);
+                            this.add.tween({
+                                targets: diceSprite,
+                                x: { from: pos.x, to: diceSprite.x },
+                                y: { from: pos.y, to: diceSprite.y },
+                                scale: { from: 0.2, to: 0.4 },
+                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
+                                duration: 500,
+                                repeat: 0, // -1: infinity
+                                yoyo: false
+                            });
+                        },
+                    });
 
                     return diceSprite;
                 }),
@@ -325,6 +364,26 @@ export class MainScene extends Phaser.Scene {
                     diceSprite.setRotation(-msgLabel.rotation);
                     diceSprite.setScale(0.6);
                     diceSprite.setTint(color);
+                    diceSprite.setVisible(false);
+
+                    this.fixedTime.addEvent({
+                        delay: 50,
+                        callback: () => {
+                            diceSprite.setVisible(true);
+                            const pos = msgLabel.getLocalPoint(playerB.x, playerB.y);
+                            this.add.tween({
+                                targets: diceSprite,
+                                x: { from: pos.x, to: diceSprite.x },
+                                y: { from: pos.y, to: diceSprite.y },
+                                scale: { from: 0.3, to: 0.6 },
+                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
+                                duration: 500,
+                                repeat: 0, // -1: infinity
+                                yoyo: false
+                            });
+                        },
+                    });
+
 
                     return diceSprite;
                 }),
@@ -347,6 +406,26 @@ export class MainScene extends Phaser.Scene {
                     // diceSprite.setRotation(-dirCardinal * Math.PI / 2);
                     diceSprite.setScale(0.4);
                     diceSprite.setTint(0x444444);
+                    diceSprite.setVisible(false);
+                    if (suit == ' ') diceSprite.setVisible(false);
+
+                    this.fixedTime.addEvent({
+                        delay: 50,
+                        callback: () => {
+                            if (suit != ' ') diceSprite.setVisible(true);
+                            const pos = msgLabel.getLocalPoint(playerB.x, playerB.y);
+                            this.add.tween({
+                                targets: diceSprite,
+                                x: { from: pos.x, to: diceSprite.x },
+                                y: { from: pos.y, to: diceSprite.y },
+                                scale: { from: 0.2, to: 0.4 },
+                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
+                                duration: 500,
+                                repeat: 0, // -1: infinity
+                                yoyo: false
+                            });
+                        },
+                    });
 
                     return diceSprite;
                 }),
@@ -450,10 +529,10 @@ export class MainScene extends Phaser.Scene {
         this.updatePlayers(fixedTime, frameSize);
         for (const child of (this.effectsLayer.list as Container[])) {
             if (child.name == 'score-label') {
-                if (child.alpha > 0.8) {
-                    child.setAlpha(child.alpha * 0.995);
+                if (child.alpha > 0.85) {
+                    child.setAlpha(child.alpha * 0.997);
                 } else if (child.alpha > 0.02) {
-                    child.setAlpha(child.alpha * 0.99);
+                    child.setAlpha(child.alpha * 0.98);
                 } else {
                     child.destroy();
                 }
