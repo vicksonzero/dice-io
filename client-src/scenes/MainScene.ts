@@ -30,12 +30,15 @@ import type { Socket } from "socket.io-client";
 import { AttackHappenedMessage, PlayerState, StateMessage } from '../../model/EventsFromServer';
 import { StartMessage } from '../../model/EventsFromClient';
 
+import { Dice } from '../../server-src/Dice'; // FIXME: totally wrong usage
+
 
 type BaseSound = Phaser.Sound.BaseSound;
 type Key = Phaser.Input.Keyboard.Key;
 type Container = Phaser.GameObjects.Container;
 type Graphics = Phaser.GameObjects.Graphics;
 type Image = Phaser.GameObjects.Image;
+type Text = Phaser.GameObjects.Text;
 
 const Vector2 = Phaser.Math.Vector2;
 const KeyCodes = Phaser.Input.Keyboard.KeyCodes;
@@ -71,6 +74,7 @@ export class MainScene extends Phaser.Scene {
     effectsLayer: Container;
     uiLayer: Container;
     physicsDebugLayer: Graphics;
+    manualLayer: Container;
 
     btn_mute: Image;
 
@@ -266,6 +270,7 @@ export class MainScene extends Phaser.Scene {
         this.uiLayer = this.add.container(0, 0);
         this.physicsDebugLayer = this.add.graphics({ lineStyle: { color: 0x000000, width: 1, alpha: 1 } });
         this.uiLayer.add(this.physicsDebugLayer);
+        this.manualLayer = this.add.container(0, 0);
 
 
 
@@ -278,6 +283,7 @@ export class MainScene extends Phaser.Scene {
         // });
 
         this.setUpGUI();
+        // this.setUpTutorial();
         this.setUpKeyboard();
         this.input.keyboard.enabled = false;
         this.input.keyboard.disableGlobalCapture();
@@ -372,8 +378,8 @@ export class MainScene extends Phaser.Scene {
         };
 
         this.startButton.onclick = submitNameToServer;
-        this.startForm.onsubmit = () => {
-            event?.preventDefault();
+        this.startForm.onsubmit = (evt) => {
+            evt.preventDefault();
             submitNameToServer();
         };
 
@@ -417,6 +423,61 @@ export class MainScene extends Phaser.Scene {
 
                 this.socket.emit('dash', { dashVector });
             });
+    }
+
+    setUpTutorial() {
+        let image: Image;
+        let text: Text;
+
+        let y = 50;
+        for (const [i, [diceName, def]] of Object.entries(Dice.diceDefinitions).entries()) {
+            let x = 50;
+            const { color, desc, sides } = def;
+            text = this.make.text({
+                x: x, y: y,
+                text: diceName,
+                style: { align: 'center', color: '#000' }
+            });
+
+            x += 100;
+
+            for (const [j, suit] of sides.split('').entries()) {
+                const posX = x + 40 * j;
+                const posY = y;
+                image = this.make.image({
+                    x: posX, y: posY,
+                    key: 'd6',
+                });
+
+                image.setScale(0.6);
+                image.setTint(color);
+                this.manualLayer.add(image);
+
+
+                const key = {
+                    " ": 0, //  =Blank
+                    "S": 'sword', // S=Sword
+                    "H": 'shield', // H=Shield
+                    "M": 'structure_tower', // M=Morale
+                    "B": 'book_open', // B=Book
+                    "V": 'skull', // V=Venom
+                    "F": 'fastForward', // F=Fast
+                }[suit];
+
+                if (key != ' ') {
+                    image = this.make.image({
+                        x: posX, y: posY,
+                        key,
+                    });
+
+                    image.setScale(0.4);
+                    image.setTint(0x444444);
+                    this.manualLayer.add(image);
+                }
+            }
+
+            y += 48;
+        }
     }
 
     updatePlayers(fixedTime: number, frameSize: number) {

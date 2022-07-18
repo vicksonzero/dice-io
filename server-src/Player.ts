@@ -13,6 +13,7 @@ export class Player {
         lastReceived: 0,
         lastUpdated: 0,
     };
+    public deleteAfterTick?: number;
 
     public buffs = {
         B: 0, // in next fight, deal x more damage
@@ -89,6 +90,14 @@ export class Player {
             // });
             physicsFinishedCallback?.();
         });
+    }
+
+    destroyPhysics(physicsSystem: PhysicsSystem) {
+        if (!this.b2Body) return;
+        console.log('destroyPhysics', this.entityId);
+        
+        physicsSystem.scheduleDestroyBody(this.b2Body);
+        this.b2Body.m_userData.gameObject = null;
     }
 
     applyDashImpulse(dashVector: XY) {

@@ -57,3 +57,25 @@ Restart pm2 server:
 # git reset --hard # if needed
 git pull && tsc && pm2 restart dice-io
 ```
+
+# How to play
+| Icon        | Name   | Meaning                                                               |
+| ----------- | ------ | --------------------------------------------------------------------- |
+|             | Blank  |                                                                       |
+| Sword       | Sword  | Deal more damage than your opponent to win a die from them            |
+| Shield      | Shield | Nullifies a damage from opponent                                      |
+| Castle      | Morale | If the damages tie, the one with more morale wins                     |
+| Book        | Book   | Does nothing, but powers-up the next attack                           |
+| Skull       | Venom  | Adds Venom debuff to opponent. they will take 1 more damage per stack |
+| FastForward | Fast   | (WIP)                                                                 |
+
+
+| Color  | Faces  | Description         |
+| ------ | ------ | ------------------- |
+| WHITE  | SSSHHM | Balanced basic dice |
+| BLUE   | HHHSSM | Defense dice        |
+| RED    | SSSSHH | Offense dice        |
+| GREEN  | VBSMM  | Poison dice         |
+| AQUA   | FFSSMM | Speed dice          |
+| YELLOW | MMSHH  | Morale dice         |
+| PURPLE | BBHMMM | Knowledge dice      |

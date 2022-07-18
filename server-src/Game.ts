@@ -44,7 +44,7 @@ export class Game implements b2ContactListener {
 
     init() {
         this.physicsSystem.init(this as b2ContactListener);
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 50; i++) {
             const player = this.spawnNpc();
         }
     }
@@ -69,6 +69,33 @@ export class Game implements b2ContactListener {
             WORLD_HEIGHT / 2 - npc.y
         );
         let tier = 0;
+        if (displacement.Length() < 200) tier = 2;
+        else if (displacement.Length() < 500) tier = 1;
+
+        npc.diceList = [
+            Dice.getRandomDice(tier)!,
+            Dice.getRandomDice(tier)!,
+            Dice.getRandomDice(tier)!,
+        ];
+        if (tier == 1) npc.diceList.push(Dice.getRandomDice(0)!);
+        if (tier == 2) npc.diceList.push(Dice.getRandomDice(1)!);
+
+
+        console.log('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
+
+
+        return npc;
+    }
+    reuseNpc(npc: Player) {
+        console.log('reuseNpc', npc.entityId);
+
+        this.randomizePlayerPosition(npc);
+
+        const displacement = new b2Vec2(
+            WORLD_WIDTH / 2 - npc.x,
+            WORLD_HEIGHT / 2 - npc.y
+        );
+        let tier = 0;
         if (displacement.Length() < 600) tier = 2;
         else if (displacement.Length() < 1200) tier = 1;
 
@@ -77,12 +104,11 @@ export class Game implements b2ContactListener {
             Dice.getRandomDice(tier)!,
             Dice.getRandomDice(tier)!,
         ];
-
         console.log('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
 
-
-        return npc;
+        npc.deleteAfterTick = undefined;
     }
+
 
     randomizePlayerPosition(player: Player) {
         const padding = SPAWN_PADDING + player.r;
@@ -243,20 +269,30 @@ export class Game implements b2ContactListener {
             // player.updateAim();
 
         };
+        for (let i = 0; i < this.players.length; /* */) {
+            const player = this.players[i];
+            if (player.deleteAfterTick != null && Date.now() > player.deleteAfterTick) {
+                this.reuseNpc(player);
+            } else if (!player.isControlling && (player.x < 0 || player.x > WORLD_WIDTH || player.y < 0 || player.y > WORLD_HEIGHT)) {
+                this.reuseNpc(player);
+            }
+            i++;
+        }
+
 
         for (const player of this.players) {
             updatePlayer(player);
         }
 
-        const updatedPlayers = this.players.filter(player => {
-            return (player.sync.lastUpdated > 0);
-        }).map(player => (
-            [
-                player.entityId,
-                player.x.toFixed(1),
-                player.y.toFixed(1),
-            ].join(' ')
-        ));
+        // const updatedPlayers = this.players.filter(player => {
+        //     return (player.sync.lastUpdated > 0);
+        // }).map(player => (
+        //     [
+        //         player.entityId,
+        //         player.x.toFixed(1),
+        //         player.y.toFixed(1),
+        //     ].join(' ')
+        // ));
         // if (updatedPlayers.length > 0) {
         //     console.log(`updatedPlayers: ${updatedPlayers.join('\n')}`);
         // }
@@ -396,8 +432,9 @@ export class Game implements b2ContactListener {
         const suitCountA = RollsStats.create(rollsA).suitCount;
         const suitCountB = RollsStats.create(rollsB).suitCount;
 
-        const netDamageA = suitCountA.S + buffsA.B + buffsB.V - suitCountB.B;
-        const netDamageB = suitCountB.S + buffsB.B + buffsA.V - suitCountA.B;
+        const netDamageA = Math.max(0, suitCountA.S + buffsA.B + buffsB.V - suitCountB.B);
+        const netDamageB = Math.max(0, suitCountB.S + buffsB.B + buffsA.V - suitCountA.B);
+
 
         let result: 'A' | 'B' | 'DRAW' = 'DRAW';
 
@@ -405,6 +442,12 @@ export class Game implements b2ContactListener {
         else if (netDamageB > netDamageA) result = 'B';
         else if (suitCountA.M > suitCountB.M) result = 'A';
         else if (suitCountB.M > suitCountA.M) result = 'B';
+
+        buffsA.B += suitCountA.B;
+        buffsA.V += suitCountB.V;
+        buffsB.B += suitCountB.B;
+        buffsB.V += suitCountA.V;
+
 
         const message: AttackHappenedMessage = {
             untilTick: Date.now() + 3000,
@@ -426,9 +469,14 @@ export class Game implements b2ContactListener {
 
             if (losingPlayer.diceList.length > 0) {
                 message.transferredIndex = this.transferRandomDice(losingPlayer, winningPlayer);
-            } else {
-                // kill fromPlayer
             }
+            if (losingPlayer.diceList.length <= 0) {
+                // kill losingPlayer
+                if (!losingPlayer.isControlling && losingPlayer.deleteAfterTick == null) {
+                    losingPlayer.deleteAfterTick = Date.now() + 5000;
+                }
+            }
+
         }
         console.log([`fight: `,
             `${playerA.entityId}(${message.rollsSuitA.join('')}, ${netDamageA}dmg)`,
