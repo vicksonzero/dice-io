@@ -94,7 +94,54 @@ export class PhysicsSystem {
             gameObject.sync.lastUpdated = lastUpdated ? Date.now() : 0;
         }
         // verbose('writeStateIntoGame\n' + verboseLogs.join('\n'));
-        // console.log('writeStateIntoGame\n' + verboseLogs.join('\n'));
+    }
+
+    getBodyData() {
+        const result = [];
+        for (let body = this.world.GetBodyList(); body; body = body.GetNext()) {
+            const userData: IBodyUserData = body.GetUserData();
+            const gameObject: Player = userData.gameObject || null;
+            const bodyLabel = userData?.label || '(no label)';
+            const gameObjectName = (gameObject as any)?.name || '(no name)';
+
+            const pos = body.GetPosition();
+            const rot = body.GetAngle(); // radians
+            const velo = body.GetLinearVelocity();
+            const vAngle = body.GetAngularVelocity() * RADIAN_TO_DEGREE;
+
+            const x = pos.x * METER_TO_PIXEL;
+            const y = pos.y * METER_TO_PIXEL;
+            const angle = rot * RADIAN_TO_DEGREE;
+
+            if (!gameObject) {
+                result.push({
+                    entityId: null,
+                    bodyLabel,
+                    gameObjectName,
+                    x: x,
+                    y: y,
+                    vx: velo.x,
+                    vy: velo.y,
+                    angle: angle,
+                    vAngle: vAngle,
+                });
+                continue;
+            }
+
+            result.push({
+                entityId: gameObject.entityId,
+                bodyLabel,
+                gameObjectName,
+                x: x,
+                y: y,
+                vx: velo.x,
+                vy: velo.y,
+                angle: angle,
+                vAngle: vAngle,
+            });
+        }
+
+        return result;
     }
 
     update(timeStep: number, graphics?: Phaser.GameObjects.Graphics) {
@@ -122,7 +169,7 @@ export class PhysicsSystem {
     createScheduledBodies() {
         const len = this.scheduledCreateBodyList.length;
         if (len > 0) {
-            console.log(`createScheduledBodies: ${len} callbacks`);
+            log(`createScheduledBodies: ${len} callbacks`);
         }
         this.scheduledCreateBodyList.forEach((callback) => {
             callback(this.world);

@@ -4,6 +4,12 @@ import { b2Body, b2BodyDef, b2BodyType, b2CircleShape, b2FixtureDef, b2Vec2, b2W
 import { PIXEL_TO_METER } from "./constants.js";
 import { Dice } from "./Dice.js";
 import { IFixtureUserData, PhysicsSystem } from "./PhysicsSystem.js";
+import * as Debug from 'debug';
+
+const verbose = Debug('dice-io:Player:verbose');
+const log = Debug('dice-io:Player:log');
+
+
 
 export class Player {
     public entityId: number;
@@ -88,13 +94,14 @@ export class Player {
             //     physicsSystem.scheduleDestroyBody(this.b2Body);
             //     this.b2Body.m_userData.gameObject = null;
             // });
+            log('Body created');
             physicsFinishedCallback?.();
         });
     }
 
     destroyPhysics(physicsSystem: PhysicsSystem) {
         if (!this.b2Body) return;
-        console.log('destroyPhysics', this.entityId);
+        log('destroyPhysics', this.entityId);
         
         physicsSystem.scheduleDestroyBody(this.b2Body);
         this.b2Body.m_userData.gameObject = null;

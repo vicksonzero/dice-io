@@ -27,7 +27,7 @@ import { DistanceMatrix } from '../../utils/DistanceMatrix';
 import { capitalize, lerpRadians } from '../../utils/utils';
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
-import { AttackHappenedMessage, PlayerState, StateMessage } from '../../model/EventsFromServer';
+import { AttackHappenedMessage, DebugInspectReturn, PlayerState, StateMessage } from '../../model/EventsFromServer';
 import { StartMessage } from '../../model/EventsFromClient';
 
 import { Dice } from '../../server-src/Dice'; // FIXME: totally wrong usage
@@ -45,8 +45,10 @@ const KeyCodes = Phaser.Input.Keyboard.KeyCodes;
 
 const verbose = Debug('dice-io:MainScene:verbose');
 const log = Debug('dice-io:MainScene:log');
+const socketLog = Debug('dice-io:MainScene.socket:log');
 // const warn = Debug('dice-io:MainScene:warn');
 // warn.log = console.warn.bind(console);
+
 
 export type Controls = { up: Key, down: Key, left: Key, right: Key, action: Key };
 
@@ -87,8 +89,10 @@ export class MainScene extends Phaser.Scene {
     // sfx_open: BaseSound;
     // sfx_bgm: BaseSound;
 
-    startButton: HTMLDivElement;
+    startButton: HTMLInputElement;
     startForm: HTMLFormElement;
+    startScreen: HTMLDivElement;
+    disconnectedScreen: HTMLDivElement;
 
     get mainCamera() { return this.sys.cameras.main; }
 
@@ -104,6 +108,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     initSocket() {
+        if (this.startButton) this.startButton.value = 'Connecting...';
         this.socket = io(WS_URL, {
             reconnectionDelayMax: 10000,
             // auth: {
@@ -115,17 +120,34 @@ export class MainScene extends Phaser.Scene {
         });
 
         this.socket.on("connect", () => {
-            console.log(`Socket connected. id is ${this.socket.id}`);
+            socketLog(`Socket connected. id is ${this.socket.id}`);
+            this.startButton.value = 'Start';
+        });
+        this.socket.on("connect_error", () => {
+            socketLog(`Socket connection error`);
+            this.startButton.value = 'Socket Error';
         });
         this.socket.on("disconnect", () => {
-            console.log(`Socket disconnected`);
+            socketLog(`Socket disconnected`);
+            this.startButton.value = 'Disconnected';
+            if (this.startScreen.classList.contains('hidden')) {
+                this.disconnectedScreen.classList.remove('hidden');
+            }
+        });
+        this.socket.io.on("reconnect", () => {
+            socketLog(`Socket reconnected`);
+            // don't re-enter the game, unless client side can clean up old state
+        });
+        this.socket.io.on("reconnect_attempt", () => {
+            socketLog(`Socket reconnecting...`);
+            this.startButton.value = 'Reconnecting...';
         });
         this.socket.on('welcome', (playerStateList?: StateMessage) => {
-            console.log(`Socket welcome`);
+            socketLog(`Socket welcome`);
             this.input.keyboard.enabled = true;
             this.input.keyboard.enableGlobalCapture();
 
-            this.startForm.style.display = 'none';
+            this.startScreen.classList.add('hidden');
 
             if (playerStateList) this.handlePlayerStateList(playerStateList);
 
@@ -134,7 +156,7 @@ export class MainScene extends Phaser.Scene {
         });
         this.socket.on("state", (playerStateList: StateMessage) => {
             const entityIdList = playerStateList.state.map(p => p.entityId).join(', ');
-            console.log(`Socket state (${playerStateList.state.length}) [${entityIdList}]`);
+            socketLog(`Socket state (${playerStateList.state.length}) [${entityIdList}]`);
             this.handlePlayerStateList(playerStateList);
         });
         this.socket.on("fight", (message: AttackHappenedMessage) => {
@@ -154,7 +176,7 @@ export class MainScene extends Phaser.Scene {
                 `${playerBId}(${rollsSuitB.join('')}, ${netDamageB}dmg)\n`,
                 `result=${result})`
             ].join('');
-            console.log(msg);
+            socketLog(msg);
 
             const playerA = this.entityList[playerAId];
             const playerB = this.entityList[playerBId];
@@ -244,11 +266,17 @@ export class MainScene extends Phaser.Scene {
 
         this.socket.onAny((event, ...args) => {
             if (event == 'state') return;
-            console.log(`event ${event}`, ...args);
+            if (event == 'debug-inspect-return') return;
+            socketLog(`event ${event}`, ...args);
+        });
+
+        this.socket.on('debug-inspect-return', ({ msg, data }: DebugInspectReturn) => {
+            console.log('debug-inspect-return', msg, data);
         });
     }
 
     create(): void {
+        this.setUpTitleMenu();
         this.initSocket();
         _assets_setUpAudio.call(this);
         log('create');
@@ -287,6 +315,7 @@ export class MainScene extends Phaser.Scene {
         this.setUpKeyboard();
         this.input.keyboard.enabled = false;
         this.input.keyboard.disableGlobalCapture();
+        this.setUpConsoleCheat();
         log('create complete');
     }
 
@@ -369,8 +398,10 @@ export class MainScene extends Phaser.Scene {
         });
     }
 
-    setUpGUI() {
-        this.startForm = document.querySelector('#start .form')!;
+    setUpTitleMenu() {
+        this.disconnectedScreen = document.querySelector('#disconnected-screen')!;
+        this.startScreen = document.querySelector('#title-screen')!;
+        this.startForm = document.querySelector('#title-screen .form')!;
         this.startButton = document.querySelector('#start-game')!;
         const submitNameToServer = () => {
             const name = (document.querySelector('input#player-name')! as HTMLInputElement).value;
@@ -382,6 +413,9 @@ export class MainScene extends Phaser.Scene {
             evt.preventDefault();
             submitNameToServer();
         };
+    }
+
+    setUpGUI() {
 
 
         const clickRect = this.add.graphics();
@@ -478,6 +512,25 @@ export class MainScene extends Phaser.Scene {
 
             y += 48;
         }
+    }
+
+    setUpConsoleCheat() {
+        const w = (window as any);
+        w._debugToggleEntityId = () => {
+            let val: boolean | null = null;
+            Object.values(this.entityList).forEach(player => {
+                if (val == null) val = !player._debugShowEntityId;;
+                player._debugShowEntityId = val;
+            })
+        };
+
+        w._debugInspectServer = (cmd: string) => {
+            this.socket.emit('debug-inspect', { cmd });
+        };
+
+        w._debugToggleSocketLogs = () => {
+            socketLog.enabled = !socketLog.enabled;
+        };
     }
 
     updatePlayers(fixedTime: number, frameSize: number) {

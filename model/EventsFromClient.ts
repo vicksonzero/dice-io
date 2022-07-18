@@ -7,3 +7,8 @@ export type StartMessage = {
 export type DashMessage = {
     dashVector: XY;
 }
+
+
+export type DebugInspectMessage = {
+    cmd: string;
+}

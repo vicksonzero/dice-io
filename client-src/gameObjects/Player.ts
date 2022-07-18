@@ -42,6 +42,9 @@ export class Player extends Phaser.GameObjects.Container {
     bodyDef?: b2BodyDef;
     b2Body?: b2Body;
 
+    // debug
+    _debugShowEntityId = false;
+
     syncData = {
         dt: 0,
         x: 0, y: 0,
@@ -223,10 +226,12 @@ export class Player extends Phaser.GameObjects.Container {
 
         this.isControlling = (isCtrl == null ? this.isControlling : isCtrl);
         this.setName(name);
-        this.nameTag.setText(`${name} (${this.entityId})`);
+
+        const entityIdStr = this._debugShowEntityId ? ` (${this.entityId})` : ``;
+        this.nameTag.setText(`${name}${entityIdStr}`);
         this.b2Body?.SetLinearVelocity({ x: vx, y: vy });
 
-        console.log(diceColors);
+        // console.log(diceColors);
 
         diceColors.forEach((color, i) => {
             let diceSprite: Image = this.diceContainer.list[i] as Image;

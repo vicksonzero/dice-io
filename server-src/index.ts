@@ -3,17 +3,19 @@ import { createServer } from "https";
 import { Server, Socket } from "socket.io"
 import { readFileSync } from 'fs'
 import { Game } from './Game.js'
-import { DashMessage, StartMessage } from '../model/EventsFromClient'
+import { DashMessage, DebugInspectMessage, StartMessage } from '../model/EventsFromClient'
 import { USE_SSL, PORT_WSS, PORT_WS, PHYSICS_FRAME_SIZE } from './constants'
 import 'source-map-support/register'
 import * as Debug from 'debug';
+import { DebugInspectReturn } from '../model/EventsFromServer.js';
 
 Debug.enable('dice-io:*:log');
+const socketLog = Debug('dice-io:Socket:log');
 
 
 const io = (() => {
     if (USE_SSL) {
-        console.log(`Starting WSS server at ${PORT_WSS}`);
+        socketLog(`Starting WSS server at ${PORT_WSS}`);
 
         const httpsServer = createServer({
             key: readFileSync("~/.ssh/ssl-key.pem"),
@@ -30,7 +32,7 @@ const io = (() => {
             }
         });
     } else {
-        console.log(`Starting WS server at ${PORT_WS}`);
+        socketLog(`Starting WS server at ${PORT_WS}`);
         return new Server(PORT_WS, {
             serveClient: false,
             cors: {
@@ -57,7 +59,7 @@ game.emitToAll = (event: string, data: any) => {
 
 io.on("connection", (socket: Socket) => {
     const count = io.engine.clientsCount;
-    console.log(`Socket (${count}) connected. id=${socket.id}, ip=${socket.handshake.address}, ua=${socket.handshake.headers['user-agent']}`);
+    socketLog(`Socket connected (total=${count}). id=${socket.id}, ip=${socket.handshake.address}, ua=${socket.handshake.headers['user-agent']}`);
 
     const sendState = (isFullState = false) => {
         const playerStateList = game.getViewForPlayer(socket.id, isFullState);
@@ -72,7 +74,7 @@ io.on("connection", (socket: Socket) => {
 
     socket.on("start", (data: StartMessage) => {
         const { name } = data;
-        console.log(`Socket player start. name=${name}`);
+        socketLog(`Socket player start. name=${name}`);
 
         game.onPlayerConnected(name, socket.id);
 
@@ -81,7 +83,7 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("disconnect", () => {
-        console.log(`Socket disconnected. (id=${socket.id})`);
+        socketLog(`Socket disconnected. (id=${socket.id})`);
         game.onPlayerDisconnected(socket.id);
         clearInterval(interval);
         clearInterval(interval2);
@@ -89,8 +91,54 @@ io.on("connection", (socket: Socket) => {
 
     socket.on("dash", (data: DashMessage) => {
         const { dashVector } = data;
-        // console.log(`Socket dash. (${dashVector.x}, ${dashVector.y})`);
+        // socketLog(`Socket dash. (${dashVector.x}, ${dashVector.y})`);
         game.onPlayerDash(socket.id, dashVector);
         sendState();
     });
+
+    socket.on('debug-inspect', ({ cmd }: DebugInspectMessage) => {
+        socketLog(`Socket debug-inspect (cmd=${cmd})`);
+
+        const commands = {
+            'entity-list': () => {
+                socket.emit('debug-inspect-return', {
+                    msg: `entity-list`,
+                    data: game.getEntityList(),
+                } as DebugInspectReturn);
+            },
+            'entity-data': () => {
+                socket.emit('debug-inspect-return', {
+                    msg: `entity-data`,
+                    data: game.getEntityData(socket.id),
+                } as DebugInspectReturn);
+            },
+            'body-data': () => {
+                socket.emit('debug-inspect-return', {
+                    msg: `body-data`,
+                    data: game.getBodyData(),
+                } as DebugInspectReturn);
+            },
+
+            'help': () => {
+                socket.emit('debug-inspect-return', {
+                    msg: `Command list:`,
+                    data: Object.keys(commands),
+                } as DebugInspectReturn);
+            },
+        };
+        const command = Object.entries(commands).find(([key]) => key === cmd);
+
+        if (!command) {
+            socket.emit('debug-inspect-return', { msg: `unknown cmd: ${cmd}` } as DebugInspectReturn);
+        } else {
+            command[1]();
+        }
+    });
+});
+
+
+process.on('SIGINT', () => {
+    console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
+    // some other closing procedures go here
+    process.exit(0);
 });

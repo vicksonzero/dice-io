@@ -19,6 +19,10 @@ import { Dice, RollsStats } from './Dice';
 
 
 const verbose = Debug('dice-io:Game:verbose');
+const log = Debug('dice-io:Game:log');
+const physicsLog = Debug('dice-io:Game.Physics:log');
+const spawnLog = Debug('dice-io:Game.spawn:log');
+const fightLog = Debug('dice-io:Game.fight:log');
 
 export class Game implements b2ContactListener {
     public players: Player[] = [];
@@ -81,13 +85,13 @@ export class Game implements b2ContactListener {
         if (tier == 2) npc.diceList.push(Dice.getRandomDice(1)!);
 
 
-        console.log('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
+        spawnLog('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
 
 
         return npc;
     }
     reuseNpc(npc: Player) {
-        console.log('reuseNpc', npc.entityId);
+        spawnLog('reuseNpc', npc.entityId);
 
         this.randomizePlayerPosition(npc);
 
@@ -104,7 +108,7 @@ export class Game implements b2ContactListener {
             Dice.getRandomDice(tier)!,
             Dice.getRandomDice(tier)!,
         ];
-        console.log('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
+        spawnLog('getRandomDice', npc.diceList.map(d => d.symbol).join(''));
 
         npc.deleteAfterTick = undefined;
     }
@@ -115,7 +119,7 @@ export class Game implements b2ContactListener {
         const x = Math.random() * (WORLD_WIDTH - padding * 2) + padding;
         const y = Math.random() * (WORLD_HEIGHT - padding * 2) + padding;
 
-        console.log(`randomizePlayerPosition(player=${player.entityId}, ${player.socketId || 'ai'})`);
+        spawnLog(`randomizePlayerPosition(player=${player.entityId}, ${player.socketId || 'ai'})`);
 
         player.x = x;
         player.y = y;
@@ -130,13 +134,12 @@ export class Game implements b2ContactListener {
         const player = Player.create(name, 0, playerId);
         this.players.push(player);
         player.createPhysics(this.physicsSystem, () => {
-            console.log('Body created');
         });
         this.randomizePlayerPosition(player);
         this.distanceMatrix.insertTransform(player);
 
-        console.log(`Created player ${player.entityId}`);
-        console.log('getRandomDice', player.diceList.map(d => d.symbol).join(''));
+        spawnLog(`Created player ${player.entityId}`);
+        spawnLog('getRandomDice', player.diceList.map(d => d.symbol).join(''));
         return player;
     }
     onPlayerDisconnected(playerId: string) {
@@ -151,7 +154,7 @@ export class Game implements b2ContactListener {
         // TODO: clean up existingPlayer
         this.players.splice(this.players.indexOf(existingPlayer), 1);
 
-        console.log(`Deleted player ${existingPlayer.entityId}`);
+        spawnLog(`Deleted player ${existingPlayer.entityId}`);
         return existingPlayer;
     }
 
@@ -208,6 +211,45 @@ export class Game implements b2ContactListener {
         }
 
         player.applyDashImpulse(dashVector);
+    }
+
+    getEntityList() {
+        const list = (this.players
+            .map(player => player.entityId)
+        );
+
+        return list;
+    }
+
+    getEntityData(playerId: string) {
+        const state = (this.players
+            .map(player => {
+                return {
+                    entityId: player.entityId,
+                    x: player.x,
+                    y: player.y,
+                    vx: player.vx,
+                    vy: player.vy,
+                    angle: player.angle, // in degrees
+                    vAngle: player.vAngle,
+                    r: player.r, // radius
+
+                    name: player.name,
+                    color: player.color,
+                    isHuman: player.isHuman,
+                    isCtrl: (player.socketId === playerId), // for the player receiving this state pack, is this Player themselves?
+                    nextMoveTick: player.nextMoveTick,
+
+                    diceColors: player.diceList.map(dice => dice.color),
+                };
+            })
+        );
+
+        return state;
+    }
+
+    getBodyData() {
+        return this.physicsSystem.getBodyData();
     }
 
     update() {
@@ -318,7 +360,7 @@ export class Game implements b2ContactListener {
             const gameObjectB = bodyB?.GetUserData()?.gameObject;
 
 
-            console.log(`BeginContact ` +
+            physicsLog(`BeginContact ` +
                 `${bodyDataA?.label}(${gameObjectA?.uniqueID})'s ${fixtureDataA?.fixtureLabel}` +
                 ` vs ` +
                 `${bodyDataB?.label}(${gameObjectB?.uniqueID})'s ${fixtureDataB?.fixtureLabel}`
@@ -333,7 +375,7 @@ export class Game implements b2ContactListener {
 
 
             checkPairFixtureLabels('player', 'player', (playerFixtureA: b2Fixture, playerFixtureB: b2Fixture) => {
-                console.log('do contact');
+                physicsLog('do contact');
                 const playerA: Player = playerFixtureA.GetBody()?.GetUserData()?.gameObject as Player;
                 const playerB: Player = playerFixtureB.GetBody()?.GetUserData()?.gameObject as Player;
 
@@ -478,7 +520,7 @@ export class Game implements b2ContactListener {
             }
 
         }
-        console.log([`fight: `,
+        fightLog([`fight: `,
             `${playerA.entityId}(${message.rollsSuitA.join('')}, ${netDamageA}dmg)`,
             ` vs ` +
             `${playerB.entityId}(${message.rollsSuitB.join('')}, ${netDamageB}dmg)`,

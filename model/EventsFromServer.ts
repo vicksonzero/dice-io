@@ -40,3 +40,9 @@ export type AttackHappenedMessage = {
     transferredIndex: number;
 };
 
+
+
+export type DebugInspectReturn = {
+    msg: string;
+    data?: any;
+}
