@@ -31,7 +31,8 @@ import type { Socket } from "socket.io-client";
 import { AttackHappenedMessage, DebugInspectReturn, PlayerState, StateMessage } from '../../model/EventsFromServer';
 import { StartMessage } from '../../model/EventsFromClient';
 
-import { Dice } from '../../server-src/Dice'; // FIXME: totally wrong usage
+import { Dice } from '../../model/Dice';
+import { DiceSprite } from '../gameObjects/DiceSprite';
 
 
 type BaseSound = Phaser.Sound.BaseSound;
@@ -282,14 +283,15 @@ export class MainScene extends Phaser.Scene {
                 }).setScale(0.2).setTint(0),
 
                 ...diceColorsA.map((color, i) => {
-                    const diceSprite = this.make.image({
-                        x: 40 * i - ((diceColorsA.length - 1) * 40 / 2), y: -20,
-                        key: 'd6',
-                    });
+                    const suit = rollsSuitA[i];
+                    const diceSprite = new DiceSprite(this, color, suit, playerAId, 0);
+                    diceSprite.setPosition(
+                        40 * i - ((diceColorsA.length - 1) * 40 / 2),
+                        -20
+                    );
 
                     diceSprite.setRotation(-msgLabel.rotation);
-                    diceSprite.setScale(0.6);
-                    diceSprite.setTint(color);
+                    diceSprite.setScale(0);
                     diceSprite.setVisible(false);
 
                     console.log('hi');
@@ -313,57 +315,16 @@ export class MainScene extends Phaser.Scene {
 
                     return diceSprite;
                 }),
-                ...rollsSuitA.map((suit: string, i) => {
-                    const key = {
-                        " ": '', //  =Blank
-                        "S": 'sword', // S=Sword
-                        "H": 'shield', // H=Shield
-                        "M": 'structure_tower', // M=Morale
-                        "B": 'book_open', // B=Book
-                        "V": 'skull', // V=Venom
-                        "F": 'fastForward', // F=Fast
-                    }[suit];
-                    const diceSprite = this.make.image({
-                        x: 40 * i - ((diceColorsA.length - 1) * 40 / 2), y: -20,
-                        key,
-                    });
-
-                    diceSprite.setRotation(-msgLabel.rotation);
-                    // diceSprite.setRotation(-dirCardinal * Math.PI / 2);
-                    diceSprite.setScale(0.4);
-                    diceSprite.setTint(0x444444);
-                    diceSprite.setVisible(false);
-                    if (suit == ' ') diceSprite.setVisible(false);
-
-                    this.fixedTime.addEvent({
-                        delay: 50,
-                        callback: () => {
-                            if (suit != ' ') diceSprite.setVisible(true);
-                            const pos = msgLabel.getLocalPoint(playerA.x, playerA.y);
-                            this.add.tween({
-                                targets: diceSprite,
-                                x: { from: pos.x, to: diceSprite.x },
-                                y: { from: pos.y, to: diceSprite.y },
-                                scale: { from: 0.2, to: 0.4 },
-                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
-                                duration: 500,
-                                repeat: 0, // -1: infinity
-                                yoyo: false
-                            });
-                        },
-                    });
-
-                    return diceSprite;
-                }),
                 ...diceColorsB.map((color, i) => {
-                    const diceSprite = this.make.image({
-                        x: 40 * i - ((diceColorsB.length - 1) * 40 / 2), y: 20,
-                        key: 'd6',
-                    });
+                    const suit = rollsSuitB[i];
+                    const diceSprite = new DiceSprite(this, color, suit, playerAId, 0);
+                    diceSprite.setPosition(
+                        40 * i - ((diceColorsB.length - 1) * 40 / 2),
+                        20
+                    );
 
                     diceSprite.setRotation(-msgLabel.rotation);
-                    diceSprite.setScale(0.6);
-                    diceSprite.setTint(color);
+                    diceSprite.setScale(0);
                     diceSprite.setVisible(false);
 
                     this.fixedTime.addEvent({
@@ -376,49 +337,6 @@ export class MainScene extends Phaser.Scene {
                                 x: { from: pos.x, to: diceSprite.x },
                                 y: { from: pos.y, to: diceSprite.y },
                                 scale: { from: 0.3, to: 0.6 },
-                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
-                                duration: 500,
-                                repeat: 0, // -1: infinity
-                                yoyo: false
-                            });
-                        },
-                    });
-
-
-                    return diceSprite;
-                }),
-                ...rollsSuitB.map((suit: string, i) => {
-                    const key = {
-                        " ": '', //  =Blank
-                        "S": 'sword', // S=Sword
-                        "H": 'shield', // H=Shield
-                        "M": 'structure_tower', // M=Morale
-                        "B": 'book_open', // B=Book
-                        "V": 'skull', // V=Venom
-                        "F": 'fastForward', // F=Fast
-                    }[suit];
-                    const diceSprite = this.make.image({
-                        x: 40 * i - ((diceColorsB.length - 1) * 40 / 2), y: 20,
-                        key,
-                    });
-
-                    diceSprite.setRotation(-msgLabel.rotation);
-                    // diceSprite.setRotation(-dirCardinal * Math.PI / 2);
-                    diceSprite.setScale(0.4);
-                    diceSprite.setTint(0x444444);
-                    diceSprite.setVisible(false);
-                    if (suit == ' ') diceSprite.setVisible(false);
-
-                    this.fixedTime.addEvent({
-                        delay: 50,
-                        callback: () => {
-                            if (suit != ' ') diceSprite.setVisible(true);
-                            const pos = msgLabel.getLocalPoint(playerB.x, playerB.y);
-                            this.add.tween({
-                                targets: diceSprite,
-                                x: { from: pos.x, to: diceSprite.x },
-                                y: { from: pos.y, to: diceSprite.y },
-                                scale: { from: 0.2, to: 0.4 },
                                 ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
                                 duration: 500,
                                 repeat: 0, // -1: infinity
@@ -736,7 +654,14 @@ export class MainScene extends Phaser.Scene {
                     this.mainCamera.startFollow(player, true, 0.2, 0.2);
                 }
             } else {
-                this.entityList[entityId].applyState(playerState, dt);
+                const isSmooth = (() => {
+                    if (!this.mainPlayer) return false;
+                    const dist = 500;
+                    if (Math.abs(playerState.x - this.mainPlayer.x) > dist) return false;
+                    if (Math.abs(playerState.y - this.mainPlayer.y) > dist) return false;
+                    return true;
+                })();
+                this.entityList[entityId].applyState(playerState, dt, isSmooth);
 
                 // if (isCtrl) console.log('handlePlayerStateList', playerState);
             }

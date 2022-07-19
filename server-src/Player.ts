@@ -2,7 +2,7 @@ import { getPhysicsDefinitions } from '../model/Player';
 import { getUniqueID } from '../model/UniqueID';
 import { b2Body, b2BodyDef, b2BodyType, b2CircleShape, b2FixtureDef, b2Vec2, b2World, XY } from "@flyover/box2d";
 import { PIXEL_TO_METER } from "./constants.js";
-import { Dice } from "./Dice.js";
+import { Dice } from "../model/Dice.js";
 import { IFixtureUserData, PhysicsSystem } from "./PhysicsSystem.js";
 import * as Debug from 'debug';
 

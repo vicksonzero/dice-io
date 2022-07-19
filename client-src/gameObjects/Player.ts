@@ -7,6 +7,7 @@ import { getUniqueID } from '../../model/UniqueID';
 import { config } from '../config/config';
 import { PlayerState } from '../../model/EventsFromServer';
 import { getPhysicsDefinitions } from '../../model/Player';
+import { DiceSprite } from './DiceSprite';
 
 
 const log = Debug('dice-io:Player:log');
@@ -190,7 +191,7 @@ export class Player extends Phaser.GameObjects.Container {
         // this.hpBar.setPosition(this.x, this.y);
     }
 
-    applyState(state: PlayerState, dt: number) {
+    applyState(state: PlayerState, dt: number, isSmooth = true) {
         const {
             x, y,
             vx, vy,
@@ -210,14 +211,22 @@ export class Player extends Phaser.GameObjects.Container {
             angle, vAngle,
         };
 
-        const referenceSpeed = Math.max(Math.abs(vx), Math.abs(vy));
-        const smoothFactor = Math.min(1, SMOOTH_FACTOR * (referenceSpeed < 1 ? 2 : 1));
-        const smoothX = (this.x * (1 - smoothFactor)) + ((x + vx * dt) * smoothFactor);
-        const smoothY = (this.y * (1 - smoothFactor)) + ((y + vy * dt) * smoothFactor);
-        this.setPosition(
-            this.x + Math.max(-SMOOTH_CAP, Math.min(smoothX - this.x, SMOOTH_CAP)),
-            this.y + Math.max(-SMOOTH_CAP, Math.min(smoothY - this.y, SMOOTH_CAP)),
-        ); // TODO: lerp instead of set
+        if (!isSmooth) {
+            this.x = x;
+            this.y = y;
+        } else {
+            const referenceSpeed = Math.max(Math.abs(vx), Math.abs(vy));
+            const smoothFactor = Math.min(1, SMOOTH_FACTOR * (referenceSpeed < 1 ? 2 : 1));
+            const smoothX = (this.x * (1 - smoothFactor)) + ((x + vx * dt) * smoothFactor);
+            const smoothY = (this.y * (1 - smoothFactor)) + ((y + vy * dt) * smoothFactor);
+            this.setPosition(
+                this.x + Math.max(-SMOOTH_CAP, Math.min(smoothX - this.x, SMOOTH_CAP)),
+                this.y + Math.max(-SMOOTH_CAP, Math.min(smoothY - this.y, SMOOTH_CAP)),
+            ); // TODO: lerp instead of set
+
+            this.debugRemoteDot.setPosition(x - this.x, y - this.y);
+            this.debugExtrapolatedDot.setPosition(smoothX - this.x, smoothY - this.y);
+        }
         this.bodySprite.setAngle(
             (this.bodySprite.angle * (1 - SMOOTH_FACTOR)) + ((angle + vAngle * dt) * SMOOTH_FACTOR)
         ); // TODO: lerp instead of set
@@ -229,7 +238,7 @@ export class Player extends Phaser.GameObjects.Container {
 
         this.isControlling = (isCtrl == null ? this.isControlling : isCtrl);
         this.setName(name);
-        
+
         this.diceContainer.setVisible(Date.now() >= nextCanShoot);
 
         const entityIdStr = this._debugShowEntityId ? ` (${this.entityId})` : ``;
@@ -239,39 +248,32 @@ export class Player extends Phaser.GameObjects.Container {
         // console.log(diceColors);
 
         diceColors.forEach((color, i) => {
-            let diceSprite: Image = this.diceContainer.list[i] as Image;
+            let diceSprite: DiceSprite = this.diceContainer.list[i] as DiceSprite;
             if (diceSprite == null) {
                 this.diceContainer.add([
-                    diceSprite = this.scene.make.image({
-                        x: 0, y: 0,
-                        key: 'd6',
-                    })
+                    diceSprite = new DiceSprite(this.scene, color, ' ', this.entityId, i)
                 ]);
                 diceSprite.setScale(0.3);
             }
 
-            diceSprite.setTint(color);
+            diceSprite.updateDice(color, ' ');
         });
 
         const increment = 2 * Math.PI / diceColors.length;
         const radius = 32;
         this.diceContainer.list.forEach((diceSprite, i) => {
             if (i >= diceColors.length) {
-                (diceSprite as Image).setVisible(false);
+                (diceSprite as DiceSprite).setVisible(false);
                 return;
             }
-            (diceSprite as Image).setVisible(true);
+            (diceSprite as DiceSprite).setVisible(true);
 
-            (diceSprite as Image).setPosition(
+            (diceSprite as DiceSprite).setPosition(
                 Math.cos(increment * i) * radius,
                 Math.sin(increment * i) * radius,
             );
         });
 
         this.debugText.setText(this.isControlling ? `(${x.toFixed(1)}, ${y.toFixed(1)})` : '');
-        this.debugRemoteDot.setPosition(x - this.x, y - this.y);
-        // console.log(smoothX, );
-
-        this.debugExtrapolatedDot.setPosition(smoothX - this.x, smoothY - this.y);
     }
 }

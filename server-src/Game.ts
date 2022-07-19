@@ -8,14 +8,13 @@ import {
 import * as Debug from 'debug';
 import { IFixtureUserData, IBodyUserData } from '../client-src/PhysicsSystem';
 import { Player } from './Player';
-import type { Socket } from 'socket.io';
 import { PHYSICS_FRAME_SIZE, PHYSICS_MAX_FRAME_CATCHUP, SPAWN_PADDING, WORLD_HEIGHT, WORLD_WIDTH } from './constants';
 import { AttackHappenedMessage, StateMessage } from '../model/EventsFromServer';
 import { PhysicsSystem } from './PhysicsSystem';
 import { Clock } from '../model/PhaserClock';
 import { DistanceMatrix } from '../utils/DistanceMatrix'
 import { names } from '../model/Names'
-import { Dice, RollsStats } from './Dice';
+import { Dice, RollsStats } from '../model/Dice';
 
 
 const verbose = Debug('dice-io:Game:verbose');

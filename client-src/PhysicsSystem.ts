@@ -1,5 +1,7 @@
 
-import { b2Body, b2BodyType, b2CircleShape, b2ContactListener, b2JointType, b2PolygonShape, b2ShapeType, b2World, XY } from "@flyover/box2d";
+import { b2Body, b2BodyType, b2CircleShape, b2ContactListener, b2PolygonShape, b2ShapeType, b2World, XY } from "@flyover/box2d";
+import { b2JointType } from "@flyover/box2d/Box2D/Dynamics/Joints/b2Joint";
+
 import * as Debug from 'debug';
 import { METER_TO_PIXEL, PHYSICS_ALLOW_SLEEPING, PIXEL_TO_METER } from "./constants";
 import { GameObjects } from "phaser";
