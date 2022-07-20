@@ -284,8 +284,10 @@ export class MainScene extends Phaser.Scene {
                 ...rollsA.map((roll, i) => {
                     const { sideId, diceData } = roll;
                     const { color } = diceData;
+                    const isTransferred = (result == 'B' && transferredIndex == i);
+                    const ownerId = isTransferred ? playerBId : playerAId;
                     // const suit = RollsStats.getRollSuit(roll);
-                    const diceSprite = new DiceSprite(this, diceData, sideId, playerAId, 0);
+                    const diceSprite = new DiceSprite(this, diceData, sideId, ownerId, 0);
                     diceSprite.setPosition(
                         40 * i - ((rollsA.length - 1) * 40 / 2),
                         -20
@@ -319,8 +321,10 @@ export class MainScene extends Phaser.Scene {
                 ...rollsB.map((roll, i) => {
                     const { sideId, diceData } = roll;
                     const { color } = diceData;
+                    const isTransferred = (result == 'A' && transferredIndex == i);
+                    const ownerId = isTransferred ? playerAId : playerBId;
                     // const suit = RollsStats.getRollSuit(roll);
-                    const diceSprite = new DiceSprite(this, diceData, sideId, playerBId, 0);
+                    const diceSprite = new DiceSprite(this, diceData, sideId, ownerId, 0);
                     diceSprite.setPosition(
                         40 * i - ((rollsB.length - 1) * 40 / 2),
                         20
@@ -448,14 +452,30 @@ export class MainScene extends Phaser.Scene {
         );
         // this.distanceMatrix.init([this.bluePlayer, this.redPlayer, ...this.blueAi, ...this.redAi, ...this.items]);
         this.updatePlayers(fixedTime, frameSize);
-        for (const child of (this.effectsLayer.list as Container[])) {
-            if (child.name == 'score-label') {
-                if (child.alpha > 0.85) {
-                    child.setAlpha(child.alpha * 0.997);
-                } else if (child.alpha > 0.02) {
-                    child.setAlpha(child.alpha * 0.98);
+        for (const scoreLabel of (this.effectsLayer.list as Container[])) {
+            if (scoreLabel.name == 'score-label') {
+                if (scoreLabel.alpha > 0.85) {
+                    scoreLabel.setAlpha(scoreLabel.alpha * 0.997);
+                } else if (scoreLabel.alpha > 0.02) {
+                    scoreLabel.setAlpha(scoreLabel.alpha * 0.98);
+                    for (const dice of scoreLabel.list) {
+                        if (dice instanceof DiceSprite) {
+                            const owner = this.entityList[dice.playerEntityId];
+                            if (!!owner && owner.active) {
+                                const pos = scoreLabel.getLocalPoint(owner.x, owner.y);
+                                const dir = new b2Vec2(
+                                    pos.x - dice.x,
+                                    pos.y - dice.y
+                                );
+                                dir.SelfNormalize().SelfMul(0.7);
+                                dice.x += dir.x;
+                                dice.y += dir.y;
+                            }
+                            // dice.setVisible(!dice.visible);
+                        }
+                    }
                 } else {
-                    child.destroy();
+                    scoreLabel.destroy();
                 }
             }
         }
