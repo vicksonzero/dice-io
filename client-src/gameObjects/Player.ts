@@ -106,7 +106,7 @@ export class Player extends Phaser.GameObjects.Container {
     }
 
     init(state: PlayerState): this {
-        const { entityId, x, y, angle, r, name, color, diceColors, nextCanShoot, isHuman, isCtrl: isControlling } = state;
+        const { entityId, x, y, angle, r, name, color, diceList, nextCanShoot, isHuman, isCtrl: isControlling } = state;
         this.entityId = entityId;
         this.setPosition(x, y);
         this.r = r;
@@ -198,7 +198,7 @@ export class Player extends Phaser.GameObjects.Container {
             angle, vAngle,
             r,
             name, color,
-            diceColors,
+            diceList,
             isHuman, isCtrl,
             nextCanShoot,
         } = state;
@@ -247,22 +247,25 @@ export class Player extends Phaser.GameObjects.Container {
 
         // console.log(diceColors);
 
-        diceColors.forEach((color, i) => {
-            let diceSprite: DiceSprite = this.diceContainer.list[i] as DiceSprite;
-            if (diceSprite == null) {
-                this.diceContainer.add([
-                    diceSprite = new DiceSprite(this.scene, color, ' ', this.entityId, i)
-                ]);
-                diceSprite.setScale(0.3);
-            }
+        if (isSmooth) {
+            diceList.forEach((diceState, i) => {
+                const { diceData, diceEnabled, sideId } = diceState;
+                let diceSprite: DiceSprite = this.diceContainer.list[i] as DiceSprite;
+                if (diceSprite == null) {
+                    this.diceContainer.add([
+                        diceSprite = new DiceSprite(this.scene, diceData, -1, this.entityId, i)
+                    ]);
+                    diceSprite.setScale(0.3);
+                }
 
-            diceSprite.updateDice(color, ' ');
-        });
+                diceSprite.setDiceData(diceData).setDiceEnabled(diceEnabled).updateDice();
+            });
+        }
 
-        const increment = 2 * Math.PI / diceColors.length;
+        const increment = 2 * Math.PI / diceList.length;
         const radius = 32;
         this.diceContainer.list.forEach((diceSprite, i) => {
-            if (i >= diceColors.length) {
+            if (i >= diceList.length) {
                 (diceSprite as DiceSprite).setVisible(false);
                 return;
             }

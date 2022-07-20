@@ -17,6 +17,8 @@ export function preload(this: Phaser.Scene) {
     this.load.image('book_open', './assets/kenney_boardgameicons/book_open.png');
     this.load.image('skull', './assets/kenney_boardgameicons/skull.png');
     this.load.image('fastForward', './assets/kenney_boardgameicons/fastForward.png');
+    this.load.image('bow', './assets/kenney_boardgameicons/bow.png');
+    this.load.image('suit_hearts_broken', './assets/kenney_boardgameicons/suit_hearts_broken.png');
 
 
     // this.load.atlas('items_icon',

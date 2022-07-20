@@ -16,7 +16,7 @@ export type CreateBodyCallback = (world: b2World) => void;
 
 export interface IBodyUserData {
     label: string;
-    gameObject: GameObjects.Components.Transform;
+    gameObject: any;
 }
 
 export interface IFixtureUserData {

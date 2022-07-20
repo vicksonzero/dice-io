@@ -127,11 +127,20 @@ git pull && tsc && pm2 restart dice-io
 
 # TODO
 
-- [ ] Don't lerp client player pos if too far
+- [x] Don't lerp client player pos if too far
 - [ ] Change dice fight details
 - [ ] Add pop-up stores
 - [ ] Add scoreboard
 - [ ] Add slots
-- [ ] Add dice projectiles
+- [ ] Add shooting dice
+- [ ] Add buff icons
+- [ ] Loot boxes
+  - [ ] Buy loaded dice
+  - [ ] Buy dice with stronger faces
+- [ ] Hurting opponents gain chips
+- [ ] Last hit to gain a random dice
+- [ ] Popup-Store system
+- [ ] Add eating items
+- [ ] Phaser RenderTexture
 
 

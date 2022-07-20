@@ -1,4 +1,5 @@
 import { XY } from "@flyover/box2d";
+import { BuffDefinition, DiceDefinition, DiceState } from "./Dice";
 
 
 export type StateMessage = {
@@ -20,10 +21,12 @@ export type PlayerState = {
     nextMoveTick?: number;
     nextCanShoot: number;
 
-    diceColors: number[];
     vx: number,
     vy: number,
     vAngle: number,
+
+    diceList: DiceState[];
+    buffList: BuffDefinition[];
 }
 
 
@@ -34,10 +37,8 @@ export type AttackHappenedMessage = {
     displacementAB: XY;
     playerAId: number;
     playerBId: number;
-    diceColorsA: number[],
-    diceColorsB: number[],
-    rollsSuitA: string[];
-    rollsSuitB: string[];
+    rollsA: DiceState[];
+    rollsB: DiceState[];
     netDamageA: number;
     netDamageB: number;
     transferredIndex: number;

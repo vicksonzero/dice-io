@@ -9,7 +9,7 @@ import * as Debug from 'debug';
 import { IFixtureUserData, IBodyUserData } from '../client-src/PhysicsSystem';
 import { Player } from './Player';
 import { PHYSICS_FRAME_SIZE, PHYSICS_MAX_FRAME_CATCHUP, SPAWN_PADDING, WORLD_HEIGHT, WORLD_WIDTH } from './constants';
-import { AttackHappenedMessage, StateMessage } from '../model/EventsFromServer';
+import { AttackHappenedMessage, PlayerState, StateMessage } from '../model/EventsFromServer';
 import { PhysicsSystem } from './PhysicsSystem';
 import { Clock } from '../model/PhaserClock';
 import { DistanceMatrix } from '../utils/DistanceMatrix'
@@ -19,11 +19,10 @@ import { Dice, RollsStats } from '../model/Dice';
 
 const verbose = Debug('dice-io:Game:verbose');
 const log = Debug('dice-io:Game:log');
-const physicsLog = Debug('dice-io:Game.Physics:log');
 const spawnLog = Debug('dice-io:Game.spawn:log');
 const fightLog = Debug('dice-io:Game.fight:log');
 
-export class Game implements b2ContactListener {
+export class Game {
     public players: Player[] = [];
     sfx_point: any;
 
@@ -46,7 +45,7 @@ export class Game implements b2ContactListener {
     }
 
     init() {
-        this.physicsSystem.init(this as b2ContactListener);
+        this.setUpPhysics();
         for (let i = 0; i < 50; i++) {
             const player = this.spawnNpc();
         }
@@ -193,8 +192,12 @@ export class Game implements b2ContactListener {
                     nextMoveTick: player.nextMoveTick,
                     nextCanShoot: player.nextCanShoot,
 
-                    diceColors: player.diceList.map(dice => dice.color),
-                };
+                    diceList: player.diceList.map(dice => ({
+                        diceData: dice.diceData,
+                        diceEnabled: dice.diceEnabled,
+                        sideId: -1,
+                    })),
+                } as PlayerState;
             })
         );
 
@@ -241,8 +244,12 @@ export class Game implements b2ContactListener {
                     isCtrl: (player.socketId === playerId), // for the player receiving this state pack, is this Player themselves?
                     nextMoveTick: player.nextMoveTick,
 
-                    diceColors: player.diceList.map(dice => dice.color),
-                };
+                    diceList: player.diceList.map(dice => ({
+                        diceData: dice.diceData,
+                        diceEnabled: dice.diceEnabled,
+                        sideId: -1,
+                    })),
+                } as PlayerState;
             })
         );
 
@@ -344,128 +351,34 @@ export class Game implements b2ContactListener {
         // }
     }
 
+    setUpPhysics() {
+        this.physicsSystem.init();
+        this.physicsSystem.registerBeginContactHandler('player-player',
+            this.physicsSystem.byFixtureLabel,
+            'player', 'player',
+            (playerFixtureA: b2Fixture, playerFixtureB: b2Fixture, contact) => {
+                if (!contact.IsTouching()) return;
 
-    public BeginContact(pContact: b2Contact<b2Shape, b2Shape>): void {
-        for (let contact: b2Contact<b2Shape, b2Shape> | null = pContact; contact != null; contact = contact.GetNext()) {
-            if (!contact) { continue; } // satisfy eslint
-            const fixtureA = contact.GetFixtureA();
-            const fixtureB = contact.GetFixtureB();
-
-            const bodyA = fixtureA.GetBody();
-            const bodyB = fixtureB.GetBody();
-
-            const fixtureDataA: IFixtureUserData = fixtureA?.GetUserData();
-            const fixtureDataB: IFixtureUserData = fixtureB?.GetUserData();
-
-            const bodyDataA: IBodyUserData = bodyA?.GetUserData();
-            const bodyDataB: IBodyUserData = bodyB?.GetUserData();
-
-            const gameObjectA = bodyA?.GetUserData()?.gameObject;
-            const gameObjectB = bodyB?.GetUserData()?.gameObject;
-
-
-            physicsLog(`BeginContact ` +
-                `${bodyDataA?.label}(${gameObjectA?.uniqueID})'s ${fixtureDataA?.fixtureLabel}` +
-                ` vs ` +
-                `${bodyDataB?.label}(${gameObjectB?.uniqueID})'s ${fixtureDataB?.fixtureLabel}`
-            );
-
-            const checkPairGameObjectName = this.checkPairWithMapper_(fixtureA, fixtureB,
-                (fixture) => (fixture?.GetBody()?.GetUserData()?.gameObject.name)
-            );
-            const checkPairFixtureLabels = this.checkPairWithMapper_(fixtureA, fixtureB,
-                (fixture) => (fixture?.GetUserData()?.fixtureLabel)
-            );
-
-
-            checkPairFixtureLabels('player', 'player', (playerFixtureA: b2Fixture, playerFixtureB: b2Fixture) => {
-                physicsLog('do contact');
-                const playerA: Player = playerFixtureA.GetBody()?.GetUserData()?.gameObject as Player;
-                const playerB: Player = playerFixtureB.GetBody()?.GetUserData()?.gameObject as Player;
+                const playerA: Player = this.physicsSystem.getGameObjectFromFixture(playerFixtureA) as Player;
+                const playerB: Player = this.physicsSystem.getGameObjectFromFixture(playerFixtureB) as Player;
 
                 this.fight(playerA, playerB);
-            });
-            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
+            },
+        );
+        this.physicsSystem.registerBeginContactHandler('bullet-player',
+            this.physicsSystem.byFixtureLabel,
+            'bullet', 'player',
+            (fixtureA: b2Fixture, playerFixtureB: b2Fixture, contact) => {
+                if (!contact.IsTouching()) return;
 
-            // checkPairGameObjectName('tank', 'bullet', (tankFixture: b2Fixture, bulletFixture: b2Fixture) => {
-            //     // log('do contact 3');
-            // });
-            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
+                const bullet: Player = this.physicsSystem.getGameObjectFromFixture(fixtureA) as Player;
+                const playerB: Player = this.physicsSystem.getGameObjectFromFixture(playerFixtureB) as Player;
 
-            // checkPairFixtureLabels('player-body', 'bullet-body', (playerFixture: b2Fixture, bulletFixture: b2Fixture) => {
-            //     // log('do contact 4');
-            // });
-
-        }
-    }
-    public EndContact(pContact: b2Contact<b2Shape, b2Shape>): void {
-        for (let contact: b2Contact<b2Shape, b2Shape> | null = pContact; contact != null; contact = contact.GetNext()) {
-            if (!contact) { continue; } // satisfy eslint
-            const fixtureA = contact.GetFixtureA();
-            const fixtureB = contact.GetFixtureB();
-
-            const checkPairGameObjectName = this.checkPairWithMapper_(fixtureA, fixtureB,
-                (fixture) => (fixture?.GetBody()?.GetUserData()?.gameObject.name)
-            );
-            const checkPairFixtureLabels = this.checkPairWithMapper_(fixtureA, fixtureB,
-                (fixture) => (fixture?.GetUserData()?.fixtureLabel)
-            );
-
-            // checkPairFixtureLabels('player-hand', 'tank-body', (a: b2Fixture, b: b2Fixture) => {
-            //     (<Player>a.GetBody()?.GetUserData()?.gameObject).onTouchingTankEnd(a, b, contact!);
-            // });
-            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
-
-            // checkPairFixtureLabels('player-hand', 'item-body', (a: b2Fixture, b: b2Fixture) => {
-            //     (<Player>a.GetBody()?.GetUserData()?.gameObject).onTouchingItemEnd(a, b, contact!);
-            // });
-            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
-
-
-            // checkPairGameObjectName('player_bullet', 'enemy', (a: b2Fixture, b: b2Fixture) => {
-            //     // (<PlayerBullet>a.gameObject).onHitEnemy(b.gameObject, activeContacts as IMatterContactPoints);
-            // });
-            // if (this.someFixturesDied(fixtureA, fixtureB)) continue;
-        }
-    }
-
-    public BeginContactFixtureParticle(system: b2ParticleSystem, contact: b2ParticleBodyContact): void {
-        // do nothing
-    }
-    public EndContactFixtureParticle(system: b2ParticleSystem, contact: b2ParticleBodyContact): void {
-        // do nothing
-    }
-    public BeginContactParticleParticle(system: b2ParticleSystem, contact: b2ParticleContact): void {
-        // do nothing
-    }
-    public EndContactParticleParticle(system: b2ParticleSystem, contact: b2ParticleContact): void {
-        // do nothing
-    }
-    public PreSolve(contact: b2Contact<b2Shape, b2Shape>, oldManifold: b2Manifold): void {
-        // do nothing
-    }
-    public PostSolve(contact: b2Contact<b2Shape, b2Shape>, impulse: b2ContactImpulse): void {
-        // do nothing
-    }
-
-    private checkPairWithMapper_(fixtureA: b2Fixture, fixtureB: b2Fixture, mappingFunction: (fixture: b2Fixture) => string) {
-        const _nameA = mappingFunction(fixtureA);
-        const _nameB = mappingFunction(fixtureA);
-
-        return (
-            nameA: string, nameB: string,
-            matchFoundCallback: (a: b2Fixture, b: b2Fixture) => void
-        ) => {
-            if (_nameA === nameA && _nameB === nameB) {
-                matchFoundCallback(fixtureA, fixtureB);
-            } else if (_nameB === nameA && _nameA === nameB) {
-                matchFoundCallback(fixtureB, fixtureA);
-            }
-        }
-    }
-    private someFixturesDied(fixtureA: b2Fixture, fixtureB: b2Fixture) {
-        return fixtureA.GetBody()?.GetUserData()?.gameObject == null ||
-            fixtureB.GetBody()?.GetUserData()?.gameObject == null;
+                // const a = contact.GetManifold();
+                // a.localNormal
+                // TODO: do something
+            },
+        );
     }
 
     fight(playerA: Player, playerB: Player) {
@@ -514,10 +427,8 @@ export class Game implements b2ContactListener {
             displacementAB,
             playerAId: playerA.entityId,
             playerBId: playerB.entityId,
-            diceColorsA: playerA.diceList.map(dice => dice.color),
-            diceColorsB: playerB.diceList.map(dice => dice.color),
-            rollsSuitA: rollsA.map(roll => roll.suit),
-            rollsSuitB: rollsB.map(roll => roll.suit),
+            rollsA,
+            rollsB,
             netDamageA,
             netDamageB,
             transferredIndex: -1,
@@ -545,8 +456,8 @@ export class Game implements b2ContactListener {
         playerB.b2Body?.SetAngularVelocity(0);
 
         if (result == 'DRAW') {
-            playerA.dashAwayFrom(playerB, 20);
-            playerB.dashAwayFrom(playerA, 20);
+            playerA.dashAwayFrom(playerB, 10);
+            playerB.dashAwayFrom(playerA, 10);
 
             playerA.nextCanShoot = Date.now() + 2000;
             playerB.nextCanShoot = Date.now() + 2000;
@@ -561,9 +472,9 @@ export class Game implements b2ContactListener {
         }
 
         fightLog([`fight: `,
-            `${playerA.entityId}(${message.rollsSuitA.join('')}, ${netDamageA}dmg)`,
+            `${playerA.entityId}(${RollsStats.getRollSuits(message.rollsA).join('')}, ${netDamageA}dmg)`,
             ` vs ` +
-            `${playerB.entityId}(${message.rollsSuitB.join('')}, ${netDamageB}dmg)`,
+            `${playerB.entityId}(${RollsStats.getRollSuits(message.rollsB).join('')}, ${netDamageB}dmg)`,
             `, result=${result})`
         ].join(''));
 

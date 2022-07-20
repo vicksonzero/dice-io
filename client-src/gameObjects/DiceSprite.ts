@@ -1,4 +1,5 @@
 import * as Debug from 'debug';
+import { DiceData, DiceSide, DiceType, Suit } from '../../model/Dice';
 import { MainScene } from '../scenes/MainScene';
 
 
@@ -19,25 +20,33 @@ export class DiceSprite extends Phaser.GameObjects.Container {
     playerEntityId: number;
     diceSlotId: number;
 
-    // player info
-    diceColor: number;
-    suit: string;
-    suitColor: number = 0x444444;
+    diceData: DiceData = {
+        icon: '%',
+        type: DiceType.DICE,
+        sides: '%',
+        color: 0xb1c6c7,
+        disabledColor: 0x4a5959,
+        desc: 'Blank Dice',
+    }
+    // state
+    diceEnabled = true;
+    sideId = -1; // 0-5, -1 = use icon
 
     // sprites
     debugText: Text;
 
     // debug
     _debugShowEntityId = false;
-    diceSprite: Phaser.GameObjects.Image;
+    diceSprite: Phaser.GameObjects.Image | null;
+    diceGraphics: Phaser.GameObjects.Graphics | null;
     suitSprite: Phaser.GameObjects.Image;
 
-    constructor(scene: MainScene, diceColor: number, suit: string, playerEntityId: number, diceSlotId: number) {
+    constructor(scene: MainScene, diceData: DiceData, sideId: number, playerEntityId: number, diceSlotId: number) {
         super(scene, 0, 0, []);
         this.playerEntityId = playerEntityId;
         this.diceSlotId = diceSlotId;
-        this.diceColor = diceColor;
-        this.suit = suit;
+        this.diceData = diceData;
+        this.sideId = sideId;
         this.setName('player');
         this.createSprite();
     }
@@ -47,34 +56,60 @@ export class DiceSprite extends Phaser.GameObjects.Container {
                 x: 0, y: 0,
                 key: 'd6',
             }, false),
+            // this.diceGraphics = this.scene.make.graphics({
+            //     x: 0, y: 0,
+            // }),
             this.suitSprite = this.scene.make.image({
                 x: 0, y: 0,
                 key: 'd6',
             }, false),
         ]);
         this.suitSprite.setScale(0.7);
-        this.updateDice(this.diceColor, this.suit, this.suitColor);
+        this.updateDice();
     }
 
-    updateDice(diceColor: number, suit: string, suitColor: number = 0x444444) {
-        this.diceColor = diceColor;
-        this.suit = suit;
-        this.suitColor = suitColor;
-        this.diceSprite.setTint(this.diceColor);
-        this.suitSprite.setTint(this.suitColor);
+    setDiceEnabled(val: boolean): this {
+        this.diceEnabled = val;
+        this.updateDice();
+        return this;
+    }
 
-        const key = {
-            " ": '', //  =Blank
-            "S": 'sword', // S=Sword
-            "H": 'shield', // H=Shield
-            "M": 'structure_tower', // M=Morale
-            "B": 'book_open', // B=Book
-            "V": 'skull', // V=Venom
-            "F": 'fastForward', // F=Fast
-        }[this.suit];
+    setDiceData(diceData: DiceData): this {
+        this.diceData = {
+            ...this.diceData,
+            ...diceData,
+        };
+        return this;
+    }
+
+    updateDice() {
+        const color = (this.diceEnabled
+            ? this.diceData.color
+            : this.diceData.disabledColor
+        );
+        this.diceSprite?.setTint(color);
+        this.diceGraphics?.clear();
+        this.diceGraphics?.fillStyle(color, 1);
+
+        const iconSize = 48;
+        if (this.diceData.type === DiceType.DICE) {
+            this.diceGraphics?.fillRoundedRect(-iconSize / 2, -iconSize / 2, iconSize, iconSize, 6);
+            this.diceSprite?.setTexture('d6');
+        } else if (this.diceData.type === DiceType.BUFF) {
+            this.diceGraphics?.fillCircle(0, 0, iconSize / 2);
+            this.diceSprite?.setTexture('d2');
+        }
+        
+        this.suitSprite.setTint(DiceSide.suitColor[this.diceData.type]);
+
+        const suit = (this.diceData.type === DiceType.DICE && this.sideId >= 0
+            ? this.diceData.sides[this.sideId] as Suit
+            : this.diceData.icon
+        );
+        const key = DiceSide.spriteKey[suit];
         if (key == null) throw new Error(`key ${key} is an unknown dice suit`);
         this.suitSprite.setTexture(key);
-        this.suitSprite.setVisible(this.suit != ' ');
+        this.suitSprite.setVisible(suit != ' ');
 
     }
 

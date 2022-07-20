@@ -31,7 +31,7 @@ import type { Socket } from "socket.io-client";
 import { AttackHappenedMessage, DebugInspectReturn, PlayerState, StateMessage } from '../../model/EventsFromServer';
 import { StartMessage } from '../../model/EventsFromClient';
 
-import { Dice } from '../../model/Dice';
+import { Dice, DiceSide, RollsStats, Suit } from '../../model/Dice';
 import { DiceSprite } from '../gameObjects/DiceSprite';
 
 
@@ -168,9 +168,8 @@ export class MainScene extends Phaser.Scene {
                 result,
                 playerAPos, displacementAB,
                 playerAId, playerBId,
-                diceColorsA, diceColorsB,
-                rollsSuitA, rollsSuitB,
                 netDamageA, netDamageB,
+                rollsA, rollsB,
                 transferredIndex,
             } = message;
 
@@ -179,11 +178,11 @@ export class MainScene extends Phaser.Scene {
                 displacementAB.y
             );
 
-            const msg = [`fight: \n`,
-                `${playerAId}(${rollsSuitA.join('')}, ${netDamageA}dmg)\n`,
-                ` vs \n` +
-                `${playerBId}(${rollsSuitB.join('')}, ${netDamageB}dmg)\n`,
-                `result=${result})`
+            const msg = [`fight: `,
+                `${playerAId}(${RollsStats.getRollSuits(message.rollsA).join('')}, ${netDamageA}dmg)`,
+                ` vs ` +
+                `${playerBId}(${RollsStats.getRollSuits(message.rollsB).join('')}, ${netDamageB}dmg)`,
+                `, result=${result})`
             ].join('');
             socketLog(msg);
 
@@ -282,11 +281,13 @@ export class MainScene extends Phaser.Scene {
                     key: 'd6',
                 }).setScale(0.2).setTint(0),
 
-                ...diceColorsA.map((color, i) => {
-                    const suit = rollsSuitA[i];
-                    const diceSprite = new DiceSprite(this, color, suit, playerAId, 0);
+                ...rollsA.map((roll, i) => {
+                    const { sideId, diceData } = roll;
+                    const { color } = diceData;
+                    // const suit = RollsStats.getRollSuit(roll);
+                    const diceSprite = new DiceSprite(this, diceData, sideId, playerAId, 0);
                     diceSprite.setPosition(
-                        40 * i - ((diceColorsA.length - 1) * 40 / 2),
+                        40 * i - ((rollsA.length - 1) * 40 / 2),
                         -20
                     );
 
@@ -315,11 +316,13 @@ export class MainScene extends Phaser.Scene {
 
                     return diceSprite;
                 }),
-                ...diceColorsB.map((color, i) => {
-                    const suit = rollsSuitB[i];
-                    const diceSprite = new DiceSprite(this, color, suit, playerAId, 0);
+                ...rollsB.map((roll, i) => {
+                    const { sideId, diceData } = roll;
+                    const { color } = diceData;
+                    // const suit = RollsStats.getRollSuit(roll);
+                    const diceSprite = new DiceSprite(this, diceData, sideId, playerBId, 0);
                     diceSprite.setPosition(
-                        40 * i - ((diceColorsB.length - 1) * 40 / 2),
+                        40 * i - ((rollsB.length - 1) * 40 / 2),
                         20
                     );
 
@@ -579,15 +582,7 @@ export class MainScene extends Phaser.Scene {
                 this.manualLayer.add(image);
 
 
-                const key = {
-                    " ": 0, //  =Blank
-                    "S": 'sword', // S=Sword
-                    "H": 'shield', // H=Shield
-                    "M": 'structure_tower', // M=Morale
-                    "B": 'book_open', // B=Book
-                    "V": 'skull', // V=Venom
-                    "F": 'fastForward', // F=Fast
-                }[suit];
+                const key = DiceSide.spriteKey[suit as Suit];
 
                 if (key != ' ') {
                     image = this.make.image({

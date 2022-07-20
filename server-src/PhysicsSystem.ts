@@ -1,5 +1,5 @@
 
-import { b2Body, b2BodyType, b2CircleShape, b2ContactListener, b2JointType, b2PolygonShape, b2ShapeType, b2World, XY } from "@flyover/box2d";
+import { b2Body, b2BodyType, b2CircleShape, b2Contact, b2ContactImpulse, b2ContactListener, b2Fixture, b2JointType, b2Manifold, b2ParticleBodyContact, b2ParticleContact, b2ParticleSystem, b2PolygonShape, b2Shape, b2ShapeType, b2World, XY } from "@flyover/box2d";
 import * as Debug from 'debug';
 import { DEGREE_TO_RADIAN, METER_TO_PIXEL, PHYSICS_ALLOW_SLEEPING, PIXEL_TO_METER, RADIAN_TO_DEGREE } from "./constants";
 import { GameObjects } from "phaser";
@@ -8,6 +8,7 @@ import { Player } from "./Player";
 
 const verbose = Debug('dice-io:PhysicsSystem:verbose');
 const log = Debug('dice-io:PhysicsSystem:log');
+const contactsLog = Debug('dice-io:PhysicsSystem.Contacts:log');
 // const warn = Debug('dice-io:PhysicsSystem:warn');
 // warn.log = console.warn.bind(console);
 
@@ -22,17 +23,40 @@ export interface IFixtureUserData {
     fixtureLabel: string;
 }
 
-export class PhysicsSystem {
+export type ContactCallback = (fixtureA: b2Fixture, fixtureB: b2Fixture, contact: b2Contact<b2Shape, b2Shape>) => void;
+export type FixturePropertyMapper = (fixture: b2Fixture) => string;
+export type ContactFilterList = {
+    [x: string]: FixturePropertyMapper
+}
+export type FilteredContactHandler = {
+    title: string;
+    filter: FixturePropertyMapper;
+    labelA: string;
+    labelB: string;
+    callback: ContactCallback;
+}
+
+export class PhysicsSystem implements b2ContactListener {
 
     world: b2World;
     scheduledCreateBodyList: CreateBodyCallback[] = [];
     scheduledDestroyBodyList: b2Body[] = [];
 
+    public byBodyLabel: FixturePropertyMapper = (fixture) => (fixture?.GetBody()?.GetUserData()?.label);
+    public byGameObjectName: FixturePropertyMapper = (fixture) => (fixture?.GetBody()?.GetUserData()?.gameObject?.name);
+    public byGameObjectEntityId: FixturePropertyMapper = (fixture) => (fixture?.GetBody()?.GetUserData()?.gameObject?.entityId);
+    public byFixtureLabel: FixturePropertyMapper = (fixture) => (fixture?.GetUserData()?.fixtureLabel);
+
+    public getGameObjectFromFixture = (fixture: b2Fixture) => (fixture?.GetBody()?.GetUserData()?.gameObject);
+
+    beginContactHandlers: FilteredContactHandler[] = [];
+    endContactHandlers: FilteredContactHandler[] = [];
+
     constructor(public gravity: XY = { x: 0, y: 0 }) {
         this.world = new b2World(gravity);
     }
 
-    init(contactListener: b2ContactListener) {
+    init(contactListener: b2ContactListener = this) {
         this.world.SetAllowSleeping(PHYSICS_ALLOW_SLEEPING);
         this.world.SetContactListener(contactListener);
     }
@@ -147,7 +171,7 @@ export class PhysicsSystem {
     update(timeStep: number, graphics?: Phaser.GameObjects.Graphics) {
         this.destroyScheduledBodies('before Step');
         this.readStateFromGame();
-        if (graphics) { this.debugDraw(graphics); }
+        // if (graphics) { this.debugDraw(graphics); }
         // verbose('Begin updateToFrame');
         this.updateOneFrame(timeStep);
         this.destroyScheduledBodies('after Step');
@@ -192,128 +216,259 @@ export class PhysicsSystem {
         this.scheduledDestroyBodyList = [];
     }
 
-    debugDraw(graphics: Phaser.GameObjects.Graphics) {
-        // see node_modules/@flyover/box2d/Box2D/Dynamics/b2World.js DrawDebugData() 
-        // for more example of drawing debug data onto screen
-        graphics.clear();
-        this.drawBodies(graphics);
-        this.drawJoints(graphics);
+    public registerBeginContactHandler(
+        title: string,
+        filter: FixturePropertyMapper,
+        labelA: string,
+        labelB: string,
+        callback: ContactCallback
+    ) {
+
+        this.beginContactHandlers.push({
+            title,
+            filter,
+            labelA,
+            labelB,
+            callback,
+        });
     }
 
-    drawBodies(graphics: Phaser.GameObjects.Graphics) {
-        for (let body = this.world.GetBodyList(); body; body = body.GetNext()) {
-            const pos = body.GetPosition();
-            const angle = body.GetAngle(); // radian
+    public registerEndContactHandler(
+        title: string,
+        filter: FixturePropertyMapper,
+        labelA: string,
+        labelB: string,
+        callback: ContactCallback
+    ) {
+        this.endContactHandlers.push({
+            title,
+            filter,
+            labelA,
+            labelB,
+            callback,
+        });
+    }
 
-            for (let fixture = body.GetFixtureList(); fixture; fixture = fixture.GetNext()) {
-                const shape = fixture.GetShape();
-                const type = shape.GetType();
-                const isSensor = fixture.IsSensor();
-                const fixtureLabel = (fixture.GetUserData() as IFixtureUserData).fixtureLabel;
 
-                let color = 0xff8080;
+    public BeginContact(pContact: b2Contact<b2Shape, b2Shape>): void {
+        for (let contact: b2Contact<b2Shape, b2Shape> | null = pContact; contact != null; contact = contact.GetNext()) {
+            if (!contact) { continue; } // satisfy eslint
+            const fixtureA = contact.GetFixtureA();
+            const fixtureB = contact.GetFixtureB();
 
-                if (!body.IsActive()) {
-                    color = 0x80804c;
-                }
-                else if (body.GetType() === b2BodyType.b2_staticBody) {
-                    color = 0x80e580;
-                }
-                else if (body.GetType() === b2BodyType.b2_kinematicBody) {
-                    color = 0x8080e5;
-                }
-                else if (!body.IsAwake()) {
-                    color = 0x999999;
-                }
-                else {
-                    color = 0xe6b2b2; // 0xf29999;
-                }
+            contactsLog(`BeginContact ` +
+                `${this.byBodyLabel(fixtureA)}(${this.byGameObjectEntityId(fixtureA)})'s ${this.byFixtureLabel(fixtureA)}` +
+                ` vs ` +
+                `${this.byBodyLabel(fixtureB)}(${this.byGameObjectEntityId(fixtureB)})'s ${this.byFixtureLabel(fixtureB)}`
+            );
 
-                const alpha = isSensor ? 0 : 0.5;
-                graphics.lineStyle(2, color, 1);
-                graphics.fillStyle(color, alpha);
+            for (const handler of this.beginContactHandlers) {
+                const {
+                    title,
+                    filter,
+                    labelA,
+                    labelB,
+                    callback,
+                } = handler;
+                const checkPairWithMapper = this.checkPairWithMapper_(fixtureA, fixtureB, filter);
+                checkPairWithMapper(labelA, labelB, (fixtureA: b2Fixture, fixtureB: b2Fixture) => {
+                    if (title) contactsLog(`Handler "${title}" matched`);
+                    callback(fixtureA, fixtureB, contact!);
+                });
+                if (this.someFixturesDied(fixtureA, fixtureB)) break;
+            }
+        }
+    }
+    public EndContact(pContact: b2Contact<b2Shape, b2Shape>): void {
+        for (let contact: b2Contact<b2Shape, b2Shape> | null = pContact; contact != null; contact = contact.GetNext()) {
+            if (!contact) { continue; } // satisfy eslint
+            const fixtureA = contact.GetFixtureA();
+            const fixtureB = contact.GetFixtureB();
 
-                switch (type) {
-                    case b2ShapeType.e_circleShape:
-                        {
-                            const circleShape = shape as b2CircleShape;
-                            const p = circleShape.m_p;
-                            const r = circleShape.m_radius;
+            contactsLog(`EndContact ` +
+                `${this.byBodyLabel(fixtureA)}(${this.byGameObjectEntityId(fixtureA)})'s ${this.byFixtureLabel(fixtureA)}` +
+                ` vs ` +
+                `${this.byBodyLabel(fixtureB)}(${this.byGameObjectEntityId(fixtureB)})'s ${this.byFixtureLabel(fixtureB)}`
+            );
 
-                            graphics.strokeCircle((pos.x + p.x) * METER_TO_PIXEL, (pos.y + p.y) * METER_TO_PIXEL, r * METER_TO_PIXEL);
-                            graphics.fillCircle((pos.x + p.x) * METER_TO_PIXEL, (pos.y + p.y) * METER_TO_PIXEL, r * METER_TO_PIXEL);
-                            graphics.lineBetween(
-                                (pos.x + p.x) * METER_TO_PIXEL, (pos.y + p.y) * METER_TO_PIXEL,
-                                (pos.x + p.x + Math.cos(angle) * r) * METER_TO_PIXEL, (pos.y + p.y + Math.sin(angle) * r) * METER_TO_PIXEL
-                            );
-                        } break;
-                    case b2ShapeType.e_polygonShape:
-                        {
-                            const polygonShape = shape as b2PolygonShape;
-                            const vertices = polygonShape.m_vertices;
-                            graphics.beginPath();
-                            vertices.forEach((v, i) => {
-                                if (i === 0) {
-                                    graphics.moveTo(
-                                        (pos.x + v.x) * METER_TO_PIXEL,
-                                        (pos.y + v.y) * METER_TO_PIXEL
-                                    );
-                                } else {
-                                    graphics.lineTo(
-                                        (pos.x + v.x) * METER_TO_PIXEL,
-                                        (pos.y + v.y) * METER_TO_PIXEL
-                                    );
-                                }
-                            });
-                            graphics.closePath();
-                            graphics.strokePath();
-                            graphics.fillPath();
-                        } break;
-                }
+            for (const handler of this.endContactHandlers) {
+                const {
+                    title,
+                    filter,
+                    labelA,
+                    labelB,
+                    callback,
+                } = handler;
+                const checkPairWithMapper = this.checkPairWithMapper_(fixtureA, fixtureB, filter);
+                checkPairWithMapper(labelA, labelB, (fixtureA: b2Fixture, fixtureB: b2Fixture) => {
+                    if (title) contactsLog(`Handler "${title}" matched`);
+                    callback(fixtureA, fixtureB, contact!);
+                });
+                if (this.someFixturesDied(fixtureA, fixtureB)) break;
             }
         }
     }
 
-    drawJoints(graphics: Phaser.GameObjects.Graphics) {
-        for (let joint = this.world.GetJointList(); joint; joint = joint.GetNext()) {
-            const color = 0x81cccc;
-            graphics.lineStyle(2, color, 1);
-            const type = joint.GetType();
-            const label = joint.GetUserData()?.label || '';
+    public BeginContactFixtureParticle(system: b2ParticleSystem, contact: b2ParticleBodyContact): void {
+        // do nothing
+    }
+    public EndContactFixtureParticle(system: b2ParticleSystem, contact: b2ParticleBodyContact): void {
+        // do nothing
+    }
+    public BeginContactParticleParticle(system: b2ParticleSystem, contact: b2ParticleContact): void {
+        // do nothing
+    }
+    public EndContactParticleParticle(system: b2ParticleSystem, contact: b2ParticleContact): void {
+        // do nothing
+    }
+    public PreSolve(contact: b2Contact<b2Shape, b2Shape>, oldManifold: b2Manifold): void {
+        // do nothing
+    }
+    public PostSolve(contact: b2Contact<b2Shape, b2Shape>, impulse: b2ContactImpulse): void {
+        // do nothing
+    }
 
-            const bodyA = joint.GetBodyA();
-            const bodyB = joint.GetBodyB();
-            const xf1 = bodyA.m_xf;
-            const xf2 = bodyB.m_xf;
-            const x1 = xf1.p;
-            const x2 = xf2.p;
-            const p1 = joint.GetAnchorA({ x: 0, y: 0 });
-            const p2 = joint.GetAnchorB({ x: 0, y: 0 });
+    private checkPairWithMapper_(fixtureA: b2Fixture, fixtureB: b2Fixture, mappingFunction: FixturePropertyMapper) {
+        const _nameA = mappingFunction(fixtureA);
+        const _nameB = mappingFunction(fixtureA);
 
-            switch (type) {
-                case b2JointType.e_distanceJoint:
-                    {
-                        graphics.lineBetween(
-                            (p1.x) * METER_TO_PIXEL, (p1.y) * METER_TO_PIXEL,
-                            (p2.x) * METER_TO_PIXEL, (p2.y) * METER_TO_PIXEL
-                        );
-                    } break;
-                default:
-                    {
-                        graphics.lineBetween(
-                            (x1.x) * METER_TO_PIXEL, (x1.y) * METER_TO_PIXEL,
-                            (p1.x) * METER_TO_PIXEL, (p1.y) * METER_TO_PIXEL
-                        );
-                        graphics.lineBetween(
-                            (p1.x) * METER_TO_PIXEL, (p1.y) * METER_TO_PIXEL,
-                            (p2.x) * METER_TO_PIXEL, (p2.y) * METER_TO_PIXEL
-                        );
-                        graphics.lineBetween(
-                            (x2.x) * METER_TO_PIXEL, (x2.y) * METER_TO_PIXEL,
-                            (p2.x) * METER_TO_PIXEL, (p2.y) * METER_TO_PIXEL
-                        );
-                    }
+        return (
+            nameA: string, nameB: string,
+            matchFoundCallback: (a: b2Fixture, b: b2Fixture) => void
+        ) => {
+            if (_nameA === nameA && _nameB === nameB) {
+                matchFoundCallback(fixtureA, fixtureB);
+            } else if (_nameB === nameA && _nameA === nameB) {
+                matchFoundCallback(fixtureB, fixtureA);
             }
         }
     }
+    private someFixturesDied(fixtureA: b2Fixture, fixtureB: b2Fixture) {
+        return fixtureA.GetBody()?.GetUserData()?.gameObject == null ||
+            fixtureB.GetBody()?.GetUserData()?.gameObject == null;
+    }
+    // debugDraw(graphics: Phaser.GameObjects.Graphics) {
+    //     // see node_modules/@flyover/box2d/Box2D/Dynamics/b2World.js DrawDebugData() 
+    //     // for more example of drawing debug data onto screen
+    //     graphics.clear();
+    //     this.drawBodies(graphics);
+    //     this.drawJoints(graphics);
+    // }
+
+    // drawBodies(graphics: Phaser.GameObjects.Graphics) {
+    //     for (let body = this.world.GetBodyList(); body; body = body.GetNext()) {
+    //         const pos = body.GetPosition();
+    //         const angle = body.GetAngle(); // radian
+
+    //         for (let fixture = body.GetFixtureList(); fixture; fixture = fixture.GetNext()) {
+    //             const shape = fixture.GetShape();
+    //             const type = shape.GetType();
+    //             const isSensor = fixture.IsSensor();
+    //             const fixtureLabel = (fixture.GetUserData() as IFixtureUserData).fixtureLabel;
+
+    //             let color = 0xff8080;
+
+    //             if (!body.IsActive()) {
+    //                 color = 0x80804c;
+    //             }
+    //             else if (body.GetType() === b2BodyType.b2_staticBody) {
+    //                 color = 0x80e580;
+    //             }
+    //             else if (body.GetType() === b2BodyType.b2_kinematicBody) {
+    //                 color = 0x8080e5;
+    //             }
+    //             else if (!body.IsAwake()) {
+    //                 color = 0x999999;
+    //             }
+    //             else {
+    //                 color = 0xe6b2b2; // 0xf29999;
+    //             }
+
+    //             const alpha = isSensor ? 0 : 0.5;
+    //             graphics.lineStyle(2, color, 1);
+    //             graphics.fillStyle(color, alpha);
+
+    //             switch (type) {
+    //                 case b2ShapeType.e_circleShape:
+    //                     {
+    //                         const circleShape = shape as b2CircleShape;
+    //                         const p = circleShape.m_p;
+    //                         const r = circleShape.m_radius;
+
+    //                         graphics.strokeCircle((pos.x + p.x) * METER_TO_PIXEL, (pos.y + p.y) * METER_TO_PIXEL, r * METER_TO_PIXEL);
+    //                         graphics.fillCircle((pos.x + p.x) * METER_TO_PIXEL, (pos.y + p.y) * METER_TO_PIXEL, r * METER_TO_PIXEL);
+    //                         graphics.lineBetween(
+    //                             (pos.x + p.x) * METER_TO_PIXEL, (pos.y + p.y) * METER_TO_PIXEL,
+    //                             (pos.x + p.x + Math.cos(angle) * r) * METER_TO_PIXEL, (pos.y + p.y + Math.sin(angle) * r) * METER_TO_PIXEL
+    //                         );
+    //                     } break;
+    //                 case b2ShapeType.e_polygonShape:
+    //                     {
+    //                         const polygonShape = shape as b2PolygonShape;
+    //                         const vertices = polygonShape.m_vertices;
+    //                         graphics.beginPath();
+    //                         vertices.forEach((v, i) => {
+    //                             if (i === 0) {
+    //                                 graphics.moveTo(
+    //                                     (pos.x + v.x) * METER_TO_PIXEL,
+    //                                     (pos.y + v.y) * METER_TO_PIXEL
+    //                                 );
+    //                             } else {
+    //                                 graphics.lineTo(
+    //                                     (pos.x + v.x) * METER_TO_PIXEL,
+    //                                     (pos.y + v.y) * METER_TO_PIXEL
+    //                                 );
+    //                             }
+    //                         });
+    //                         graphics.closePath();
+    //                         graphics.strokePath();
+    //                         graphics.fillPath();
+    //                     } break;
+    //             }
+    //         }
+    //     }
+    // }
+
+    // drawJoints(graphics: Phaser.GameObjects.Graphics) {
+    //     for (let joint = this.world.GetJointList(); joint; joint = joint.GetNext()) {
+    //         const color = 0x81cccc;
+    //         graphics.lineStyle(2, color, 1);
+    //         const type = joint.GetType();
+    //         const label = joint.GetUserData()?.label || '';
+
+    //         const bodyA = joint.GetBodyA();
+    //         const bodyB = joint.GetBodyB();
+    //         const xf1 = bodyA.m_xf;
+    //         const xf2 = bodyB.m_xf;
+    //         const x1 = xf1.p;
+    //         const x2 = xf2.p;
+    //         const p1 = joint.GetAnchorA({ x: 0, y: 0 });
+    //         const p2 = joint.GetAnchorB({ x: 0, y: 0 });
+
+    //         switch (type) {
+    //             case b2JointType.e_distanceJoint:
+    //                 {
+    //                     graphics.lineBetween(
+    //                         (p1.x) * METER_TO_PIXEL, (p1.y) * METER_TO_PIXEL,
+    //                         (p2.x) * METER_TO_PIXEL, (p2.y) * METER_TO_PIXEL
+    //                     );
+    //                 } break;
+    //             default:
+    //                 {
+    //                     graphics.lineBetween(
+    //                         (x1.x) * METER_TO_PIXEL, (x1.y) * METER_TO_PIXEL,
+    //                         (p1.x) * METER_TO_PIXEL, (p1.y) * METER_TO_PIXEL
+    //                     );
+    //                     graphics.lineBetween(
+    //                         (p1.x) * METER_TO_PIXEL, (p1.y) * METER_TO_PIXEL,
+    //                         (p2.x) * METER_TO_PIXEL, (p2.y) * METER_TO_PIXEL
+    //                     );
+    //                     graphics.lineBetween(
+    //                         (x2.x) * METER_TO_PIXEL, (x2.y) * METER_TO_PIXEL,
+    //                         (p2.x) * METER_TO_PIXEL, (p2.y) * METER_TO_PIXEL
+    //                     );
+    //                 }
+    //         }
+    //     }
+    // }
 }

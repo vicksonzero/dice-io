@@ -1,20 +1,42 @@
 
 
 
-// =Blank, S=Sword, H=Shield, M=Morale, B=Book, V=Venom, F=Fast
-export type Suit = " " | "S" | "H" | "M" | "B" | "V" | "F";
+// =Blank, S=Sword, H=Shield, M=Morale, B=Book, V=Venom, F=Fast, L=Bleed, A=Arrow
+export type Suit = " " | "%" | "S" | "H" | "M" | "B" | "V" | "F" | "L" | "A";
 export type SidesString = string;
+export enum DiceType {
+    DICE = 0,
+    BUFF = 1,
+}
+
+export type DiceData = DiceDefinition | BuffDefinition;
 export type DiceDefinition = {
+    icon: Suit,
+    type: DiceType.DICE,
     sides: SidesString,
     color: number,
+    disabledColor: number,
     desc: string,
 };
+export type BuffDefinition = {
+    icon: Suit,
+    type: DiceType.BUFF,
+    color: number,
+    disabledColor: number,
+    desc: string,
+};
+
+export type DiceState = {
+    diceEnabled: boolean;
+    sideId: number;
+    diceData: DiceDefinition;
+}
 
 export class Dice {
     public symbol: string = '';
     public sides: DiceSide[] = [];
-    public color: number = 0xffffff;
-    public desc: string = '';
+    public diceData: DiceDefinition;
+    public diceEnabled = true;
 
     constructor() {
     }
@@ -24,9 +46,8 @@ export class Dice {
         this.sides[sideIndex].weight += 1;
     }
 
-    roll() {
-
-        const weights = Object.entries({ 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1 });
+    roll(): DiceState {
+        const weights = Object.entries(this.sides.map(s => s.weight));
 
         const totalWeight = 6;
 
@@ -42,30 +63,41 @@ export class Dice {
         // console.log(diceThrow.toFixed(1), totalWeight, index);
 
         const [name, weight] = weights[index];
-        return this.sides[Number(name)];
+        return {
+            diceData: this.diceData,
+            diceEnabled: this.diceEnabled,
+            sideId: Number(name),
+        };
     }
 
-    static create(symbol: string, sides: string, color: number, desc: string = '') {
+    static create(symbol: string, diceData: DiceDefinition) {
         const result = new Dice();
 
         result.symbol = symbol;
-        result.sides = sides.split('').map(sideType => DiceSide.create(sideType as Suit));
-        result.color = color;
-        result.desc = desc;
+        result.sides = diceData.sides.split('').map(sideType => DiceSide.create(sideType as Suit));
+        result.diceData = diceData;
 
         return result;
     }
     static diceDefinitions: { [x: string]: DiceDefinition } = {
         /* cSpell:disable */
-        WHITE: { sides: 'SSSHHM', color: 0xb1c6c7, desc: 'Balanced basic dice' },
-        BLUE: { sides: 'HHHSSM', color: 0x4257f5, desc: 'Defense dice' },
-        RED: { sides: 'SSSS  ', color: 0xd11f19, desc: 'Offense dice' },
-        GREEN: { sides: 'VBSMM ', color: 0x68d647, desc: 'Poison dice' },
-        AQUA: { sides: 'FFSSMM', color: 0x5fe8ed, desc: 'Speed dice' },
-        YELLOW: { sides: 'MMSHH ', color: 0xf5dd53, desc: 'Morale dice' },
-        PURPLE: { sides: 'BBHMMM', color: 0xc430e6, desc: 'Knowledge dice' },
+        WHITE: { icon: 'S', type: DiceType.DICE, sides: 'SSSHHM', color: 0xb1c6c7, disabledColor: 0x4a5959, desc: 'Balanced basic dice' },
+        BLUE: { icon: 'H', type: DiceType.DICE, sides: 'HHHSSM', color: 0x4257f5, disabledColor: 0x2d367a, desc: 'Defense dice' },
+        RED: { icon: 'S', type: DiceType.DICE, sides: 'SSSS  ', color: 0xd11f19, disabledColor: 0x781d1a, desc: 'Offense dice' },
+        GREEN: { icon: 'V', type: DiceType.DICE, sides: 'VBSMM ', color: 0x68d647, disabledColor: 0x265e15, desc: 'Poison dice' },
+        AQUA: { icon: 'F', type: DiceType.DICE, sides: 'FFSSMM', color: 0x5fe8ed, disabledColor: 0x155457, desc: 'Speed dice' },
+        YELLOW: { icon: 'M', type: DiceType.DICE, sides: 'MMSHH ', color: 0xf5dd53, disabledColor: 0x807222, desc: 'Morale dice' },
+        PURPLE: { icon: 'B', type: DiceType.DICE, sides: 'BBHMMM', color: 0xc430e6, disabledColor: 0x590d6b, desc: 'Knowledge dice' },
         /* cSpell:enable */
     }
+
+    static buffDefinitions: { [x: string]: BuffDefinition } = {
+        SWORD: { icon: 'S', type: DiceType.BUFF, color: 0x474747, disabledColor: 0, desc: 'Sword Buff' },
+        SHIELD: { icon: 'H', type: DiceType.BUFF, color: 0x474747, disabledColor: 0, desc: 'Shield Buff' },
+        ARROW: { icon: 'A', type: DiceType.BUFF, color: 0x474747, disabledColor: 0, desc: 'Arrow Buff' },
+        VENOM: { icon: 'V', type: DiceType.BUFF, color: 0x68d647, disabledColor: 0, desc: 'Venom Debuff' },
+        BLEED: { icon: 'L', type: DiceType.BUFF, color: 0xd32868, disabledColor: 0, desc: 'Bleed Debuff' }, // c91853 or d32868
+    };
 
     static diceDistribution = [
         { WHITE: 5, BLUE: 2, RED: 2, GREEN: 0, AQUA: 0, YELLOW: 1, PURPLE: 0 },
@@ -77,7 +109,7 @@ export class Dice {
         const name = Dice.getRandomDiceName(tier);
 
         const def = Dice.diceDefinitions[name];
-        return Dice.create(name[0], def.sides, def.color, def.desc)
+        return Dice.create(name[0], def);
     }
 
     static getRandomDiceName(tier: integer) {
@@ -107,6 +139,24 @@ export class DiceSide {
     public suit: Suit = ' ';
     public weight: number = 1;
 
+    static spriteKey = {
+        " ": '', //  =Blank
+        "S": 'sword', // S=Sword
+        "H": 'shield', // H=Shield
+        "M": 'structure_tower', // M=Morale
+        "B": 'book_open', // B=Book
+        "V": 'skull', // V=Venom
+        "F": 'fastForward', // F=Fast
+        "L": 'bleed', // L=Bleed
+        "A": 'bow', // A=Arrow
+        "%": 'd8', // F=Fast
+    };
+
+    static suitColor = {
+        [DiceType.DICE]: 0x444444,
+        [DiceType.BUFF]: 0xffffff,
+    };
+
     constructor() {
     }
 
@@ -124,21 +174,33 @@ export class RollsStats {
     constructor() {
         this.suitCount = {
             " ": 0, //  =Blank
+            "%": 0, //  =Blank
             "S": 0, // S=Sword
             "H": 0, // H=Shield
             "M": 0, // M=Morale
             "B": 0, // B=Book
             "V": 0, // V=Venom
             "F": 0, // F=Fast
+            "L": 0, // L=Bleed
+            "A": 0, // A=Arrow
         };
     }
-    static create(rolls: DiceSide[]) {
+    static create(rolls: DiceState[]) {
         const result = new RollsStats();
 
-        for (const side of rolls) {
-            result.suitCount[side.suit]++;
+        for (const roll of rolls) {
+            const suit = RollsStats.getRollSuit(roll);
+            result.suitCount[suit]++;
         }
 
         return result;
+    }
+
+    static getRollSuits(rolls: DiceState[]) {
+        return rolls.map(({ sideId, diceData }) => diceData.sides[sideId] as Suit);
+    }
+
+    static getRollSuit({ sideId, diceData }: DiceState) {
+        return diceData.sides[sideId] as Suit;
     }
 }
