@@ -1,9 +1,10 @@
 import { b2Vec2 } from '@flyover/box2d';
 import * as Debug from 'debug';
-import { DiceData, DiceSide, DiceType, RollsStats, Suit } from '../../model/Dice';
+import { DiceData, DiceSide, DiceState, DiceType, RollsStats, Suit } from '../../model/Dice';
 import { AttackHappenedMessage } from '../../model/EventsFromServer';
 import { MainScene } from '../scenes/MainScene';
 import { DiceSprite } from './DiceSprite';
+import { Player } from './Player';
 
 
 const log = Debug('dice-io:DiceSprite:log');
@@ -31,6 +32,10 @@ export class RollAnimation extends Phaser.GameObjects.Container {
     diceGraphics: Phaser.GameObjects.Graphics | null;
     suitSprite: Phaser.GameObjects.Image;
 
+
+    tempMatrix = new Phaser.GameObjects.Components.TransformMatrix();
+    tempParentMatrix = new Phaser.GameObjects.Components.TransformMatrix();
+
     constructor(scene: MainScene, attackMessage: AttackHappenedMessage) {
         super(scene, 0, 0, []);
         this.attackMessage = attackMessage;
@@ -51,7 +56,6 @@ export class RollAnimation extends Phaser.GameObjects.Container {
         const playerA = this.scene.entityList[playerAId];
         const playerB = this.scene.entityList[playerBId];
 
-        debugger;
         const sortedRollsA = rollsA.map((roll, i) => [
             i,
             Object.values(Suit).indexOf(RollsStats.getRollSuit(roll)),
@@ -63,88 +67,77 @@ export class RollAnimation extends Phaser.GameObjects.Container {
         ]);
         sortedRollsB.sort(([_, a], [_2, b]) => (a - b));
 
+
+        const createDiceWithAnimation = (
+            roll: DiceState, i: number,
+            _rollsMe: DiceState[], _rollsThem: DiceState[],
+            _playerMe: Player, _playerThem: Player,
+            _sortedRollsMe: number[][],
+            isLose: boolean,
+            y: number
+        ) => {
+            const { sideId, diceData } = roll;
+            const sortedIndex = _sortedRollsMe.findIndex(([index]) => index === i);
+            const isTransferred = (isLose && transferredIndex == i);
+            const ownerId = isTransferred ? _playerThem.entityId : _playerMe.entityId;
+            const slotId = (isTransferred
+                ? _rollsThem.length
+                : (i - (isLose && i > transferredIndex ? 1 : 0))
+            );
+            const diceSprite = new DiceSprite(this.scene, diceData, sideId, ownerId, slotId);
+            diceSprite.isTransferred = isTransferred;
+            diceSprite.setPosition(
+                40 * sortedIndex - ((_rollsMe.length - 1) * 40 / 2),
+                y
+            );
+
+            diceSprite.setRotation(-this.rotation);
+            diceSprite.setScale(0);
+            diceSprite.setVisible(false);
+
+            this.scene.fixedTime.addEvent({
+                delay: 50,
+                callback: () => {
+                    diceSprite.setVisible(true);
+                    const pos = this.getLocalPoint(_playerMe.x, _playerMe.y);
+                    this.scene.add.tween({
+                        targets: diceSprite,
+                        x: { from: pos.x, to: diceSprite.x },
+                        y: { from: pos.y, to: diceSprite.y },
+                        scale: { from: 0.3, to: 0.6 },
+                        ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
+                        duration: 500,
+                        repeat: 0, // -1: infinity
+                        yoyo: false,
+                    });
+                },
+            });
+
+            return diceSprite;
+        }
+
         this.add([
             // this.scene.make.image({
             //     x: 0, y: 0,
             //     key: 'd6',
             // }).setScale(0.2).setTint(0),
 
-            ...rollsA.map((roll, i) => {
-                const { sideId, diceData } = roll;
-                const { color } = diceData;
-                const sortedIndex = sortedRollsA.findIndex(([index]) => index === i);
-                const isTransferred = (result == 'B' && transferredIndex == i);
-                const ownerId = isTransferred ? playerBId : playerAId;
-                // const suit = RollsStats.getRollSuit(roll);
-                const diceSprite = new DiceSprite(this.scene, diceData, sideId, ownerId, 0);
-                diceSprite.isTransferred = isTransferred;
-                diceSprite.setPosition(
-                    40 * sortedIndex - ((rollsA.length - 1) * 40 / 2),
-                    -20
-                );
-
-                diceSprite.setRotation(-this.rotation);
-                diceSprite.setScale(0);
-                diceSprite.setVisible(false);
-
-                console.log('hi');
-                this.scene.fixedTime.addEvent({
-                    delay: 50,
-                    callback: () => {
-                        diceSprite.setVisible(true);
-                        const pos = this.getLocalPoint(playerA.x, playerA.y);
-                        this.scene.add.tween({
-                            targets: diceSprite,
-                            x: { from: pos.x, to: diceSprite.x },
-                            y: { from: pos.y, to: diceSprite.y },
-                            scale: { from: 0.3, to: 0.6 },
-                            ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
-                            duration: 500,
-                            repeat: 0, // -1: infinity
-                            yoyo: false
-                        });
-                    },
-                });
-
-                return diceSprite;
-            }),
-            ...rollsB.map((roll, i) => {
-                const { sideId, diceData } = roll;
-                const { color } = diceData;
-                const sortedIndex = sortedRollsB.findIndex(([index]) => index === i);
-                const isTransferred = (result == 'A' && transferredIndex == i);
-                const ownerId = isTransferred ? playerAId : playerBId;
-                // const suit = RollsStats.getRollSuit(roll);
-                const diceSprite = new DiceSprite(this.scene, diceData, sideId, ownerId, 0);
-                diceSprite.setPosition(
-                    40 * sortedIndex - ((rollsB.length - 1) * 40 / 2),
-                    20
-                );
-
-                diceSprite.setRotation(-this.rotation);
-                diceSprite.setScale(0);
-                diceSprite.setVisible(false);
-
-                this.scene.fixedTime.addEvent({
-                    delay: 50,
-                    callback: () => {
-                        diceSprite.setVisible(true);
-                        const pos = this.getLocalPoint(playerB.x, playerB.y);
-                        this.scene.add.tween({
-                            targets: diceSprite,
-                            x: { from: pos.x, to: diceSprite.x },
-                            y: { from: pos.y, to: diceSprite.y },
-                            scale: { from: 0.3, to: 0.6 },
-                            ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
-                            duration: 500,
-                            repeat: 0, // -1: infinity
-                            yoyo: false
-                        });
-                    },
-                });
-
-                return diceSprite;
-            }),
+            ...rollsA.map((roll, i) => createDiceWithAnimation(
+                roll, i,
+                rollsA, rollsB,
+                playerA, playerB,
+                sortedRollsA,
+                result == 'B',
+                -20
+            )),
+            ...rollsB.map((roll, i) => createDiceWithAnimation(
+                roll, i,
+                rollsB, rollsA,
+                playerB, playerA,
+                sortedRollsB,
+                result == 'A',
+                20
+            )),
         ]);
 
     }
@@ -164,28 +157,40 @@ export class RollAnimation extends Phaser.GameObjects.Container {
             return;
         }
 
+        console.log(`ownerPlayer.diceContainer.length`);
         for (const dice of this.list) {
             if (dice instanceof DiceSprite) {
-                const isTransferred = dice.isTransferred;
-                const animationLength = dice.isTransferred ? 1000 : 2000;
+                const begin = dice.isTransferred ? 1000 : 2000;
+                const end = dice.isTransferred ? 0 : 1000;
+                const animationLength = begin - end;
 
-                if (timeTillEnd > animationLength) {
+                if (timeTillEnd > begin) {
                     continue;
                 }
                 const ownerPlayer = this.scene.entityList[dice.playerEntityId];
                 if (!!ownerPlayer && ownerPlayer.active) {
-                    const pos = this.getLocalPoint(ownerPlayer.x, ownerPlayer.y);
+                    console.log(ownerPlayer.diceContainer.length);
+
+                    const slotGameObject = ownerPlayer.getSlotGameObjectById(dice.diceSlotId);
+                    if (slotGameObject == null) {
+                        dice.setVisible(false);
+                        continue;
+                    }
+                    slotGameObject.getWorldTransformMatrix(this.tempMatrix, this.tempParentMatrix);
+                    var globalPos = this.tempMatrix;
+
+                    const pos = this.getLocalPoint(globalPos.tx, globalPos.ty);
                     const dir = new b2Vec2(
                         pos.x - dice.x,
                         pos.y - dice.y
                     );
                     const dist = dir.Length();
-                    const speed = dist / (timeTillEnd / 100);
+                    const speed = dist / Math.max(1, (timeTillEnd - end) / 100);
                     dir.SelfNormalize().SelfMul(speed);
                     dice.x += dir.x;
                     dice.y += dir.y;
-                    dice.setScale((timeTillEnd / animationLength) * 0.3 + 0.3);
-                    dice.setAlpha((timeTillEnd / animationLength) * 0.9 + 0.1);
+                    dice.setScale(Math.max(0, (timeTillEnd - end) / animationLength) * 0.3 + 0.3);
+                    // dice.setAlpha((timeTillEnd / animationLength) * 0.9 + 0.1);
                 }
                 // dice.setVisible(!dice.visible);
             }

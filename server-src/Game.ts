@@ -471,9 +471,9 @@ export class Game {
         }
 
         fightLog([`fight: `,
-            `${playerA.entityId}(${RollsStats.getRollSuits(message.rollsA).join('')}, ${netDamageA}dmg)`,
+            `${playerA.name}-${playerA.entityId}(${RollsStats.getRollSuits(message.rollsA).join('')}, ${netDamageA}dmg)`,
             ` vs ` +
-            `${playerB.entityId}(${RollsStats.getRollSuits(message.rollsB).join('')}, ${netDamageB}dmg)`,
+            `${playerB.name}-${playerB.entityId}(${RollsStats.getRollSuits(message.rollsB).join('')}, ${netDamageB}dmg)`,
             `, result=${result})`
         ].join(''));
 

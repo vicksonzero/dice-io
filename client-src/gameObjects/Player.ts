@@ -268,6 +268,8 @@ export class Player extends Phaser.GameObjects.Container {
 
         const increment = 2 * Math.PI / diceList.length;
         const radius = 32;
+        // if (isSmooth) console.log(`reflow ${this.name}, ${diceList.length}`);
+
         this.diceContainer.list.forEach((diceSprite, i) => {
             if (i >= diceList.length) {
                 (diceSprite as DiceSprite).setVisible(false);
@@ -285,5 +287,9 @@ export class Player extends Phaser.GameObjects.Container {
             ? `(${x.toFixed(1)}, ${y.toFixed(1)})`
             : ''
         );
+    }
+
+    getSlotGameObjectById(slotId: number) {
+        return this.diceContainer.list[slotId] as DiceSprite|null;
     }
 }
