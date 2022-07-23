@@ -8,10 +8,17 @@ import { USE_SSL, PORT_WSS, PORT_WS, PHYSICS_FRAME_SIZE } from './constants'
 import 'source-map-support/register'
 import * as Debug from 'debug';
 import { DebugInspectReturn } from '../model/EventsFromServer.js';
+import { Dice } from '../model/Dice.js';
 
 Debug.enable('dice-io:*:log');
 const socketLog = Debug('dice-io:Socket:log');
 
+
+
+if (!Dice.selfTestDefinitions()) {
+    console.log('Cannot start server due to data syntax errors. See error logs for details');
+    process.exit(1);
+}
 
 const io = (() => {
     if (USE_SSL) {

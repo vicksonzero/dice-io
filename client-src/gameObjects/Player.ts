@@ -258,7 +258,11 @@ export class Player extends Phaser.GameObjects.Container {
                     diceSprite.setScale(0.3);
                 }
 
-                diceSprite.setDiceData(diceData).setDiceEnabled(diceEnabled).updateDice();
+                (diceSprite
+                    .setDiceData(diceData)
+                    .setDiceEnabled(diceEnabled)
+                    .updateDice()
+                );
             });
         }
 
@@ -277,6 +281,9 @@ export class Player extends Phaser.GameObjects.Container {
             );
         });
 
-        this.debugText.setText(this.isControlling ? `(${x.toFixed(1)}, ${y.toFixed(1)})` : '');
+        this.debugText.setText(this.isControlling
+            ? `(${x.toFixed(1)}, ${y.toFixed(1)})`
+            : ''
+        );
     }
 }

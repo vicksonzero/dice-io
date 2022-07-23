@@ -17,13 +17,14 @@ export class DiceSprite extends Phaser.GameObjects.Container {
     // entity
     scene: MainScene;
 
+    isTransferred = false;
     playerEntityId: number;
     diceSlotId: number;
 
     diceData: DiceData = {
-        icon: '%',
+        icon: Suit._,
         type: DiceType.DICE,
-        sides: '%',
+        sides: '_',
         color: 0xb1c6c7,
         disabledColor: 0x4a5959,
         desc: 'Blank Dice',
@@ -109,7 +110,7 @@ export class DiceSprite extends Phaser.GameObjects.Container {
         const key = DiceSide.spriteKey[suit];
         if (key == null) throw new Error(`key ${key} is an unknown dice suit`);
         this.suitSprite.setTexture(key);
-        this.suitSprite.setVisible(suit != ' ');
+        this.suitSprite.setVisible(suit != '_');
 
     }
 

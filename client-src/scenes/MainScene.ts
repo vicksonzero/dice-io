@@ -33,6 +33,7 @@ import { StartMessage } from '../../model/EventsFromClient';
 
 import { Dice, DiceSide, RollsStats, Suit } from '../../model/Dice';
 import { DiceSprite } from '../gameObjects/DiceSprite';
+import { RollAnimation } from '../gameObjects/RollAnimation';
 
 
 type BaseSound = Phaser.Sound.BaseSound;
@@ -108,11 +109,16 @@ export class MainScene extends Phaser.Scene {
     preload() {
         log('preload');
         _assets_preload.call(this);
+        socketLog.enabled = (localStorage.getItem('md.dickson.showSocketLog') || 'false') == 'true';
     }
 
     initSocket() {
         if (this.startButton) this.startButton.value = 'Connecting...';
-        this.socket = io(WS_URL, {
+        const ws_url = localStorage.getItem('md.dickson.ws_url') || WS_URL;
+        if (localStorage.getItem('md.dickson.ws_url')) {
+            console.log(`Connection to ${ws_url}`);
+        }
+        this.socket = io(ws_url, {
             reconnectionDelayMax: 10000,
             // auth: {
             //     token: "123"
@@ -206,43 +212,45 @@ export class MainScene extends Phaser.Scene {
             // );
             // msgLabel.setName('score-label');
             // msgLabel.setOrigin(0.5);
-            const msgLabel = this.add.container(
+            const msgLabel = new RollAnimation(this, message);
+
+            msgLabel.setPosition(
                 (playerA.x + playerB.x) / 2,
                 (playerA.y + playerB.y) / 2,
             );
             this.effectsLayer.add(msgLabel);
-            msgLabel.setName('score-label');
+            msgLabel.setName('roll-animation');
 
             const rotation = Math.atan2(
                 vectorAB.y,
                 vectorAB.x
             );
 
-            console.log('displacementAB', result, (result == 'A' ? playerA.name : playerB.name));
-            console.log('displacementAB', vectorAB.x, vectorAB.y);
+            // console.log('displacementAB', result, (result == 'A' ? playerA.name : playerB.name));
+            // console.log('displacementAB', vectorAB.x, vectorAB.y);
 
-            if (result == 'DRAW') {
-                vectorAB.SelfMul(0.5);
-                msgLabel.setPosition(
-                    playerA.x + vectorAB.x,
-                    playerA.y + vectorAB.y
-                );
-            }
-            if (result == 'A') {
-                vectorAB.SelfNormalize().SelfMul(40);
-                msgLabel.setPosition(
-                    playerA.x + vectorAB.x,
-                    playerA.y + vectorAB.y
-                );
-            }
-            if (result == 'B') {
+            // if (result == 'DRAW') {
+            //     vectorAB.SelfMul(0.5);
+            //     msgLabel.setPosition(
+            //         playerA.x + vectorAB.x,
+            //         playerA.y + vectorAB.y
+            //     );
+            // }
+            // if (result == 'A') {
+            //     vectorAB.SelfNormalize().SelfMul(40);
+            //     msgLabel.setPosition(
+            //         playerA.x + vectorAB.x,
+            //         playerA.y + vectorAB.y
+            //     );
+            // }
+            // if (result == 'B') {
 
-                vectorAB.SelfNormalize().SelfMul(-80);
-                msgLabel.setPosition(
-                    playerB.x + vectorAB.x,
-                    playerB.y + vectorAB.y
-                );
-            }
+            //     vectorAB.SelfNormalize().SelfMul(-80);
+            //     msgLabel.setPosition(
+            //         playerB.x + vectorAB.x,
+            //         playerB.y + vectorAB.y
+            //     );
+            // }
 
 
 
@@ -253,6 +261,8 @@ export class MainScene extends Phaser.Scene {
             // console.log('dirCardinal', dirCardinal);
 
             msgLabel.setRotation(rotation - Math.PI / 2);
+
+            msgLabel.updateDice();
 
 
             // this.effectsLayer.add(
@@ -275,86 +285,6 @@ export class MainScene extends Phaser.Scene {
             //     // .setName('score-label')
             // );
 
-            msgLabel.add([
-                this.make.image({
-                    x: 0, y: 0,
-                    key: 'd6',
-                }).setScale(0.2).setTint(0),
-
-                ...rollsA.map((roll, i) => {
-                    const { sideId, diceData } = roll;
-                    const { color } = diceData;
-                    const isTransferred = (result == 'B' && transferredIndex == i);
-                    const ownerId = isTransferred ? playerBId : playerAId;
-                    // const suit = RollsStats.getRollSuit(roll);
-                    const diceSprite = new DiceSprite(this, diceData, sideId, ownerId, 0);
-                    diceSprite.setPosition(
-                        40 * i - ((rollsA.length - 1) * 40 / 2),
-                        -20
-                    );
-
-                    diceSprite.setRotation(-msgLabel.rotation);
-                    diceSprite.setScale(0);
-                    diceSprite.setVisible(false);
-
-                    console.log('hi');
-                    this.fixedTime.addEvent({
-                        delay: 50,
-                        callback: () => {
-                            diceSprite.setVisible(true);
-                            const pos = msgLabel.getLocalPoint(playerA.x, playerA.y);
-                            this.add.tween({
-                                targets: diceSprite,
-                                x: { from: pos.x, to: diceSprite.x },
-                                y: { from: pos.y, to: diceSprite.y },
-                                scale: { from: 0.3, to: 0.6 },
-                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
-                                duration: 500,
-                                repeat: 0, // -1: infinity
-                                yoyo: false
-                            });
-                        },
-                    });
-
-                    return diceSprite;
-                }),
-                ...rollsB.map((roll, i) => {
-                    const { sideId, diceData } = roll;
-                    const { color } = diceData;
-                    const isTransferred = (result == 'A' && transferredIndex == i);
-                    const ownerId = isTransferred ? playerAId : playerBId;
-                    // const suit = RollsStats.getRollSuit(roll);
-                    const diceSprite = new DiceSprite(this, diceData, sideId, ownerId, 0);
-                    diceSprite.setPosition(
-                        40 * i - ((rollsB.length - 1) * 40 / 2),
-                        20
-                    );
-
-                    diceSprite.setRotation(-msgLabel.rotation);
-                    diceSprite.setScale(0);
-                    diceSprite.setVisible(false);
-
-                    this.fixedTime.addEvent({
-                        delay: 50,
-                        callback: () => {
-                            diceSprite.setVisible(true);
-                            const pos = msgLabel.getLocalPoint(playerB.x, playerB.y);
-                            this.add.tween({
-                                targets: diceSprite,
-                                x: { from: pos.x, to: diceSprite.x },
-                                y: { from: pos.y, to: diceSprite.y },
-                                scale: { from: 0.3, to: 0.6 },
-                                ease: 'Cubic', // 'Cubic', 'Elastic', 'Bounce', 'Back'
-                                duration: 500,
-                                repeat: 0, // -1: infinity
-                                yoyo: false
-                            });
-                        },
-                    });
-
-                    return diceSprite;
-                }),
-            ]);
 
 
         });
@@ -453,30 +383,8 @@ export class MainScene extends Phaser.Scene {
         // this.distanceMatrix.init([this.bluePlayer, this.redPlayer, ...this.blueAi, ...this.redAi, ...this.items]);
         this.updatePlayers(fixedTime, frameSize);
         for (const scoreLabel of (this.effectsLayer.list as Container[])) {
-            if (scoreLabel.name == 'score-label') {
-                if (scoreLabel.alpha > 0.85) {
-                    scoreLabel.setAlpha(scoreLabel.alpha * 0.997);
-                } else if (scoreLabel.alpha > 0.02) {
-                    scoreLabel.setAlpha(scoreLabel.alpha * 0.98);
-                    for (const dice of scoreLabel.list) {
-                        if (dice instanceof DiceSprite) {
-                            const owner = this.entityList[dice.playerEntityId];
-                            if (!!owner && owner.active) {
-                                const pos = scoreLabel.getLocalPoint(owner.x, owner.y);
-                                const dir = new b2Vec2(
-                                    pos.x - dice.x,
-                                    pos.y - dice.y
-                                );
-                                dir.SelfNormalize().SelfMul(0.7);
-                                dice.x += dir.x;
-                                dice.y += dir.y;
-                            }
-                            // dice.setVisible(!dice.visible);
-                        }
-                    }
-                } else {
-                    scoreLabel.destroy();
-                }
+            if (scoreLabel.name == 'roll-animation') {
+                scoreLabel.update();
             }
         }
 

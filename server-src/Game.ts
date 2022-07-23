@@ -455,9 +455,10 @@ export class Game {
         playerB.b2Body?.SetLinearVelocity({ x: 0, y: 0 });
         playerB.b2Body?.SetAngularVelocity(0);
 
+        playerA.dashAwayFrom(playerB, 1);
+        playerB.dashAwayFrom(playerA, 1);
+
         if (result == 'DRAW') {
-            playerA.dashAwayFrom(playerB, 10);
-            playerB.dashAwayFrom(playerA, 10);
 
             playerA.nextCanShoot = Date.now() + 2000;
             playerB.nextCanShoot = Date.now() + 2000;
@@ -467,8 +468,6 @@ export class Game {
 
             winningPlayer.nextCanShoot = Date.now() + 3000;
             losingPlayer.nextCanShoot = Date.now() + 3000;
-
-            losingPlayer.dashAwayFrom(winningPlayer, 20);
         }
 
         fightLog([`fight: `,

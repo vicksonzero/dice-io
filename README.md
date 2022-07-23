@@ -6,7 +6,9 @@ Roll dice to fight in an IO game
 - `src` has the server side
 
 
-# Local dev
+Local dev
+=====================
+
 
 ## Server
 ```bash
@@ -23,7 +25,10 @@ When doing local-dev, add this to local storage of "http://localhost:8080":
 | ----------------- | ------------------- |
 | md.dickson.ws_url | ws://localhost:3000 |
 
-# Deploy
+
+
+Deploy
+=================================
 
 ## Client
 
@@ -128,7 +133,7 @@ git pull && tsc && pm2 restart dice-io
 # TODO
 
 - [x] Don't lerp client player pos if too far
-- [ ] Change dice fight details
+- [x] Change dice fight details
 - [ ] Add pop-up stores
 - [ ] Add scoreboard
 - [ ] Add slots
@@ -142,5 +147,7 @@ git pull && tsc && pm2 restart dice-io
 - [ ] Popup-Store system
 - [ ] Add eating items
 - [ ] Phaser RenderTexture
+- [ ] ping value
+- [ ] inventory management !!
 
 
