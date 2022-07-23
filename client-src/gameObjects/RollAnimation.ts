@@ -157,7 +157,6 @@ export class RollAnimation extends Phaser.GameObjects.Container {
             return;
         }
 
-        console.log(`ownerPlayer.diceContainer.length`);
         for (const dice of this.list) {
             if (dice instanceof DiceSprite) {
                 const begin = dice.isTransferred ? 1000 : 2000;
@@ -169,7 +168,6 @@ export class RollAnimation extends Phaser.GameObjects.Container {
                 }
                 const ownerPlayer = this.scene.entityList[dice.playerEntityId];
                 if (!!ownerPlayer && ownerPlayer.active) {
-                    console.log(ownerPlayer.diceContainer.length);
 
                     const slotGameObject = ownerPlayer.getSlotGameObjectById(dice.diceSlotId);
                     if (slotGameObject == null) {

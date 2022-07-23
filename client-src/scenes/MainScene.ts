@@ -38,6 +38,10 @@ import { RollAnimation } from '../gameObjects/RollAnimation';
 
 type BaseSound = Phaser.Sound.BaseSound;
 type Key = Phaser.Input.Keyboard.Key;
+
+type EventData = Phaser.Types.Input.EventData;
+type Pointer = Phaser.Input.Pointer;
+
 type Container = Phaser.GameObjects.Container;
 type Graphics = Phaser.GameObjects.Graphics;
 type Image = Phaser.GameObjects.Image;
@@ -85,6 +89,8 @@ export class MainScene extends Phaser.Scene {
     btn_mute: Image;
 
     mainPlayer?: Player;
+    inventoryUi: Container;
+    inventoryIcons: Container;
 
     // sfx_shoot: BaseSound;
     // sfx_hit: BaseSound;
@@ -204,14 +210,6 @@ export class MainScene extends Phaser.Scene {
                 return;
             }
 
-            // const msgLabel = this.add.text(0, 0, msg, { align: 'center', color: '#000' });
-            // this.effectsLayer.add(msgLabel);
-            // msgLabel.setPosition(
-            //     (playerA.x + playerB.x) / 2,
-            //     (playerA.y + playerB.y) / 2,
-            // );
-            // msgLabel.setName('score-label');
-            // msgLabel.setOrigin(0.5);
             const msgLabel = new RollAnimation(this, message);
 
             msgLabel.setPosition(
@@ -226,67 +224,10 @@ export class MainScene extends Phaser.Scene {
                 vectorAB.x
             );
 
-            // console.log('displacementAB', result, (result == 'A' ? playerA.name : playerB.name));
-            // console.log('displacementAB', vectorAB.x, vectorAB.y);
-
-            // if (result == 'DRAW') {
-            //     vectorAB.SelfMul(0.5);
-            //     msgLabel.setPosition(
-            //         playerA.x + vectorAB.x,
-            //         playerA.y + vectorAB.y
-            //     );
-            // }
-            // if (result == 'A') {
-            //     vectorAB.SelfNormalize().SelfMul(40);
-            //     msgLabel.setPosition(
-            //         playerA.x + vectorAB.x,
-            //         playerA.y + vectorAB.y
-            //     );
-            // }
-            // if (result == 'B') {
-
-            //     vectorAB.SelfNormalize().SelfMul(-80);
-            //     msgLabel.setPosition(
-            //         playerB.x + vectorAB.x,
-            //         playerB.y + vectorAB.y
-            //     );
-            // }
-
-
-
-            // const dirCardinal = (() => {
-            //     return ~~(((rotation - Math.PI / 2) + Math.PI / 4) / (Math.PI / 2));
-            // })();
-            // msgLabel.setRotation(dirCardinal * Math.PI / 2);
-            // console.log('dirCardinal', dirCardinal);
 
             msgLabel.setRotation(rotation - Math.PI / 2);
 
             msgLabel.updateDice();
-
-
-            // this.effectsLayer.add(
-            //     this.make.image({
-            //         x: playerA.x, y: playerA.y,
-            //         key: 'd6',
-            //     })
-            //         .setScale(0.4)
-            //         .setTint(0xFF8888)
-            //     // .setName('score-label')
-            // );
-
-            // this.effectsLayer.add(
-            //     this.make.image({
-            //         x: playerB.x, y: playerB.y,
-            //         key: 'd6',
-            //     })
-            //         .setScale(0.2)
-            //         .setTint(0x8888FF)
-            //     // .setName('score-label')
-            // );
-
-
-
         });
 
         this.socket.onAny((event, ...args) => {
@@ -341,6 +282,13 @@ export class MainScene extends Phaser.Scene {
         this.input.keyboard.enabled = false;
         this.input.keyboard.disableGlobalCapture();
         this.setUpConsoleCheat();
+
+        this.renderer.on(Phaser.Renderer.Events.RENDER, () => {
+            this.uiLayer.setPosition(
+                this.mainCamera.scrollX,
+                this.mainCamera.scrollY
+            )
+        })
         log('create complete');
     }
 
@@ -442,15 +390,18 @@ export class MainScene extends Phaser.Scene {
 
         const clickRect = this.add.graphics();
         clickRect.fillStyle(0xFFFFFF, 0.1);
-        clickRect.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-        this.uiLayer.setScrollFactor(0);
+        clickRect.fillRect(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
+
+        this.inventoryUi = this.createInventoryUi();
+
         this.uiLayer.add([
             clickRect,
+            this.inventoryUi,
         ]);
 
 
         clickRect.setInteractive({
-            hitArea: new Phaser.Geom.Rectangle(0, 0, WORLD_WIDTH, WORLD_HEIGHT),
+            hitArea: new Phaser.Geom.Rectangle(clickRect.x, clickRect.y, CAMERA_WIDTH, CAMERA_HEIGHT),
             hitAreaCallback: Phaser.Geom.Rectangle.Contains,
             draggable: false,
             dropZone: false,
@@ -459,12 +410,12 @@ export class MainScene extends Phaser.Scene {
             pixelPerfect: false,
             alphaTolerance: 1
         })
-            .on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: TouchEvent | MouseEvent) => {
+            .on('pointerdown', (pointer: Pointer, localX: number, localY: number, event: EventData) => {
                 // ...
                 // console.log('pointerdown');
 
             })
-            .on('pointerup', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: TouchEvent | MouseEvent) => {
+            .on('pointerup', (pointer: Pointer, localX: number, localY: number, event: EventData) => {
                 // ...
                 // console.log('pointerup', pointer.x, pointer.y);
                 if (this.mainPlayer == null) return;
@@ -547,6 +498,84 @@ export class MainScene extends Phaser.Scene {
         };
     }
 
+    createInventoryUi() {
+        this.inventoryUi = this.make.container({ x: 0, y: CAMERA_HEIGHT - 64 }).add([
+            this.make.graphics({ x: 0, y: 0 })
+                .fillStyle(0xFFFFFF, 1)
+                .fillRect(0, 0, CAMERA_WIDTH, 64)
+        ]);
+
+        this.inventoryUi.setInteractive({
+            hitArea: new Phaser.Geom.Rectangle(0, 0, CAMERA_WIDTH, 64),
+            hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            draggable: false,
+            dropZone: false,
+            useHandCursor: false,
+            cursor: 'pointer',
+            pixelPerfect: false,
+            alphaTolerance: 1
+        })
+            .on('pointerover', (pointer: Pointer, localX: number, localY: number, event: EventData) => {
+                console.log('pointerover');
+            })
+            .on('pointerout', (pointer: Pointer, localX: number, localY: number, event: EventData) => {
+                console.log('pointerover');
+            })
+            .on('pointerdown', (pointer: Pointer, localX: number, localY: number, event: EventData) => {
+                console.log('pointerdown');
+                console.log(event);
+                event.stopPropagation();
+            })
+            .on('pointerup', (pointer: Pointer, localX: number, localY: number, event: EventData) => {
+                console.log('pointerup');
+                console.log(event);
+                event.stopPropagation();
+            });
+
+
+        const gap = CAMERA_WIDTH / 8;
+        const startX = gap / 2;
+        this.inventoryUi.add(
+            this.inventoryIcons = this.make.container({ x: 0, y: 0 })
+                .add(
+                    [...Array(8)].map((_, i) => {
+                        return (new DiceSprite(this, Dice.diceDefinitions.WHITE, -1, -1, i)
+                            .setVisible(false)
+                            .setScale(0.8)
+                            .setPosition(
+                                startX + gap * i,
+                                32
+                            )
+                        );
+                    })
+                )
+        );
+
+        return this.inventoryUi;
+    }
+
+    updateInventoryUi(playerState: PlayerState) {
+        const { diceList, nextCanShoot } = playerState;
+        if (this.mainPlayer == null) return;
+
+        this.inventoryIcons.setVisible(Date.now() > nextCanShoot);
+
+        (this.inventoryIcons.list as DiceSprite[]).forEach((diceSprite, i) => {
+            if (!diceList[i]) {
+                diceSprite.setVisible(false);
+                return;
+            }
+            diceSprite.setVisible(true);
+            const { diceData, diceEnabled, sideId } = diceList[i];
+
+            (diceSprite
+                .setDiceData(diceData)
+                .setDiceEnabled(diceEnabled)
+                .updateDice()
+            );
+        });
+    }
+
     updatePlayers(fixedTime: number, frameSize: number) {
         for (const player of Object.values(this.entityList)) {
 
@@ -585,6 +614,9 @@ export class MainScene extends Phaser.Scene {
                     return true;
                 })();
                 this.entityList[entityId].applyState(playerState, dt, isSmooth);
+                if (playerState.isCtrl) {
+                    this.updateInventoryUi(playerState);
+                }
 
                 // if (isCtrl) console.log('handlePlayerStateList', playerState);
             }

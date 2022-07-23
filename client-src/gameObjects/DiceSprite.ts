@@ -18,7 +18,7 @@ export class DiceSprite extends Phaser.GameObjects.Container {
     scene: MainScene;
 
     isTransferred = false;
-    playerEntityId: number;
+    playerEntityId: number; // -1 = no owners
     diceSlotId: number;
 
     diceData: DiceData = {
